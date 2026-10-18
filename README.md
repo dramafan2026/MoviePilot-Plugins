@@ -52,8 +52,8 @@ https://github.com/zcsky123/MoviePilot-Plugins
 - 零第三方依赖（httpx 为宿主自带），导入期无副作用，stop_service 可重复安全释放
 - 平台接口遇风控（403/空结果）时错误原因透传到前端展示，不静默吞错
 - 豆瓣封面防盗链由内置 `/cover` 代理端点（服务端带 Referer 拉图）解决
-- 桌面版同源项目：[drama-tracker](https://github.com/zcsky123)（Tauri/Rust 独立客户端）
+- 另有同源桌面版 drama-tracker（Tauri/Rust 独立客户端），独立开发分发
 
 ## 反馈
 
- issue 或在 MoviePilot 交流群 @zcsky123。安装后首次使用建议在插件配置页打开「立即运行一次」完成全链路自检。
+提交 issue 或在 MoviePilot 交流群 @zcsky123。安装后首次使用建议在插件配置页打开「立即运行一次」完成全链路自检。

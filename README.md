@@ -9,7 +9,7 @@
 在 MoviePilot 后台 **设置 → 插件 → 市场管理** 中添加第三方市场：
 
 ```
-https://github.com/zcsky123/MoviePilot-Plugins
+https://github.com/dramafan2026/MoviePilot-Plugins
 ```
 
 刷新市场后安装 **「追剧助手」**，启用即用——推送走 MoviePilot 通知中心（沿用你已配置的消息通道），插件本身**零推送配置、零第三方依赖**。
@@ -56,4 +56,4 @@ https://github.com/zcsky123/MoviePilot-Plugins
 
 ## 反馈
 
-提交 issue 或在 MoviePilot 交流群 @zcsky123。安装后首次使用建议在插件配置页打开「立即运行一次」完成全链路自检。
+提交 issue 或在 MoviePilot 交流群 @dramafan2026。安装后首次使用建议在插件配置页打开「立即运行一次」完成全链路自检。

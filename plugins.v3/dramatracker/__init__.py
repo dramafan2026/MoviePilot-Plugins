@@ -61,8 +61,8 @@ class DramaTracker(_PluginBase):
     plugin_desc = "五平台追剧订阅，新集/完结/断更推送，官方排播时刻与追剧日历，豆瓣新剧发现、待映倒计时，微信即可追更。"
     plugin_icon = "DramaTracker.png"
     plugin_version = "1.0.0"
-    plugin_author = "dramatracker"
-    author_url = "https://github.com/dramatracker/MoviePilot-Plugins"
+    plugin_author = "dramafan2026"
+    author_url = "https://github.com/dramafan2026/MoviePilot-Plugins"
     plugin_config_prefix = "dramatracker_"
     plugin_order = 30
     auth_level = 1

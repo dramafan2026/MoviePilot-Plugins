@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from typing import Any, List, Optional, Tuple, Type
+import json
 
 from apscheduler.triggers.cron import CronTrigger
 from fastapi.responses import Response as FastAPIResponse
@@ -60,7 +61,7 @@ class DramaTracker(_PluginBase):
     plugin_name = "追剧助手"
     plugin_desc = "五平台追剧订阅，新集/完结/断更推送，官方排播时刻与追剧日历，豆瓣新剧发现、待映倒计时，微信即可追更。"
     plugin_icon = "DramaTracker.png"
-    plugin_version = "1.1.1"
+    plugin_version = "1.2.0"
     plugin_author = "dramafan2026"
     author_url = "https://github.com/dramafan2026/MoviePilot-Plugins"
     plugin_config_prefix = "dramatracker_"
@@ -276,6 +277,61 @@ class DramaTracker(_PluginBase):
 
         elements: List[dict] = []
 
+        # ---- 统计条 ----
+        today_cnt = 0
+        for key, sc in subs.items():
+            rec = recs.get(key) or {}
+            if rec and core.next_update(rec).get("next_days") == 0:
+                today_cnt += 1
+
+        # ---- 本周分组（schedule_pattern：官方排播文案优先，历史规律兜底）----
+        day_names = {1: "周一", 2: "周二", 3: "周三", 4: "周四", 5: "周五", 6: "周六", 7: "周日"}
+        daily_names: List[str] = []
+        buckets = {i: [] for i in range(1, 8)}
+        pending_names: List[str] = []
+        for key, sc in subs.items():
+            rec = recs.get(key) or {}
+            title = rec.get("title") or sc.get("name", "")
+            try:
+                daily, wds, _clock = core.schedule_pattern(rec)
+            except Exception:
+                daily, wds = False, []
+            if daily:
+                daily_names.append(title)
+            elif wds:
+                for w in wds:
+                    buckets[w].append(title)
+            else:
+                pending_names.append(title)
+
+        def _stat(num: int, label: str) -> dict:
+            return {"component": "VCol", "props": {"cols": 6, "sm": 3}, "content": [{
+                "component": "VCard",
+                "props": {"variant": "tonal", "class": "text-center py-3"},
+                "content": [
+                    {"component": "VCardText",
+                     "props": {"class": "text-h5 font-weight-bold", "text": str(num)}},
+                    {"component": "VCardText",
+                     "props": {"class": "text-caption text-medium-emphasis", "text": label}},
+                ],
+            }]}
+
+        elements.append({
+            "component": "VRow", "props": {"class": "mb-1"}, "content": [
+                _stat(len(subs), "在追作品"),
+                _stat(today_cnt, "今日更新"),
+                _stat(sum(len(v) for v in buckets.values()) + len(daily_names), "本周有档"),
+                _stat(len(maoyan_items), "待映影片"),
+            ]})
+        elements.append({
+            "component": "VRow", "props": {"class": "mb-1"}, "content": [
+                {"component": "VCol", "props": {"cols": 6, "sm": 3}, "content": [{
+                    "component": "VBtn",
+                    "props": {"color": "primary", "variant": "flat", "block": True,
+                              "text": "⚡ 立即检查", "onclick": self._CHECK_JS},
+                }]},
+            ]})
+
         # 搜索订阅卡：始终置顶，订阅动作不离开详情页
         elements.append({
             "component": "VCard",
@@ -303,54 +359,39 @@ class DramaTracker(_PluginBase):
             ]},
         )
 
-        if not subs:
-            elements.append({
-                "component": "VAlert",
-                "props": {"type": "info", "variant": "tonal",
-                          "text": "还没有订阅剧集。在上方搜索框输入剧名，点「搜索」后一键订阅，即可开启追更提醒。"},
-            })
-        else:
-            if views:
-                elements.append({
-                    "component": "VCard",
-                    "props": {"variant": "tonal", "title": "我的追剧清单"},
-                    "content": [{
-                        "component": "VDataTable",
-                        "props": {
-                            "items": views,
-                            "headers": [
-                                {"title": "剧名", "key": "剧名"},
-                                {"title": "平台", "key": "平台"},
-                                {"title": "进度", "key": "进度"},
-                                {"title": "排播", "key": "排播"},
-                                {"title": "下次更新", "key": "下次更新"},
-                            ],
-                            "density": "compact",
-                            "hide-default-footer": True,
-                        },
-                    }],
-                })
+        # ---- 五标签页（VTabs 与 VWindow 共享 model 名实现联动）----
+        week_rows = []
+        for label, names in ([("每日档", daily_names)]
+                             + [(day_names[i], buckets[i]) for i in range(1, 8)]
+                             + [("待观察", pending_names)]):
+            week_rows.append({"星期": label, "剧目": "、".join(names) if names else "—"})
 
-        elements.append({
-            "component": "VCard",
-            "props": {"variant": "tonal", "title": "追剧日历", "subtitle": "官方排播优先，历史规律兜底"},
-            "content": [{
-                "component": "VDataTable",
-                "props": {
-                    "items": calendar_rows,
-                    "headers": [
-                        {"title": "剧名", "key": "剧名"},
-                        {"title": "平台", "key": "平台"},
-                        {"title": "排播", "key": "排播"},
-                        {"title": "下次更新", "key": "下次更新"},
-                        {"title": "进度", "key": "进度"},
-                    ],
-                    "density": "compact",
-                    "hide-default-footer": True,
-                },
-            }],
-        })
+        def _dt(items: list, headers: list) -> dict:
+            return {"component": "VDataTable",
+                    "props": {"items": items, "headers": headers,
+                              "density": "compact", "hide-default-footer": True}}
 
+        list_page: list = [_dt(views, [
+            {"title": "剧名", "key": "剧名"}, {"title": "平台", "key": "平台"},
+            {"title": "进度", "key": "进度"}, {"title": "排播", "key": "排播"},
+            {"title": "下次更新", "key": "下次更新"}])] if views else [{
+                "component": "VAlert", "props": {"type": "info", "variant": "tonal",
+                                                 "text": "还没有订阅。上方搜索框输入剧名，点「搜索」一键订阅。"}}]
+
+        week_page = [{"component": "VCard", "props": {"variant": "tonal",
+                      "subtitle": "按官方排播优先、历史规律兜底归档"},
+                      "content": [_dt(week_rows, [
+                          {"title": "星期", "key": "星期"},
+                          {"title": "剧目", "key": "剧目"}])]}]
+
+        cal_page: list = [_dt(calendar_rows, [
+            {"title": "剧名", "key": "剧名"}, {"title": "平台", "key": "平台"},
+            {"title": "排播", "key": "排播"}, {"title": "下次更新", "key": "下次更新"},
+            {"title": "进度", "key": "进度"}])] if calendar_rows else [{
+                "component": "VAlert", "props": {"type": "info", "variant": "tonal",
+                                                 "text": "暂无日历数据。"}}]
+
+        fresh_page: list
         if fresh:
             cards = []
             for f in fresh:
@@ -367,38 +408,54 @@ class DramaTracker(_PluginBase):
                             {"component": "VCardText",
                              "props": {"class": "text-caption",
                                        "text": f"{f.get('title', '')} {f.get('episodes', '')}"}},
+                            {"component": "VBtn",
+                             "props": {"size": "x-small", "color": "primary", "variant": "tonal",
+                                       "text": "＋ 追", "block": True,
+                                       "onclick": self._fresh_js(f.get("title", ""))}},
                         ],
                     }],
                 })
-            elements.append({
-                "component": "VCard",
-                "props": {"variant": "tonal", "title": "新剧发现",
-                          "subtitle": "近 7 天豆瓣热播新剧"},
-                "content": [{"component": "VRow", "content": cards}],
-            })
+            fresh_page = [{"component": "VCard", "props": {"variant": "tonal",
+                          "subtitle": "近 7 天豆瓣热播新剧，点「追」直接订阅"},
+                          "content": [{"component": "VRow", "content": cards}]}]
+        else:
+            fresh_page = [{"component": "VAlert", "props": {"type": "info", "variant": "tonal",
+                           "text": "暂无新剧发现（每日自动检查豆瓣热播榜单）。"}}]
 
+        soon_page: list
         if maoyan_items:
             rows = [{"片名": it["title"], "上映": it["release_text"],
                      "倒计时": f"还有 {it['days']} 天"} for it in maoyan_items]
-            elements.append({
-                "component": "VCard",
-                "props": {"variant": "tonal", "title": "待映倒计时",
-                          "subtitle": "豆瓣即将上映"},
-                "content": [{
-                    "component": "VDataTable",
-                    "props": {
-                        "items": rows,
-                        "headers": [
-                            {"title": "片名", "key": "片名"},
-                            {"title": "上映", "key": "上映"},
-                            {"title": "倒计时", "key": "倒计时"},
-                        ],
-                        "density": "compact",
-                        "hide-default-footer": True,
-                    },
-                }],
-            })
+            soon_page = [{"component": "VCard", "props": {"variant": "tonal",
+                         "subtitle": "豆瓣即将上映，上映当日提醒"},
+                         "content": [_dt(rows, [
+                             {"title": "片名", "key": "片名"},
+                             {"title": "上映", "key": "上映"},
+                             {"title": "倒计时", "key": "倒计时"}])]}]
+        else:
+            soon_page = [{"component": "VAlert", "props": {"type": "info", "variant": "tonal",
+                          "text": "暂无即将上映影片数据。"}}]
 
+        tabs = [
+            ("list", "追剧清单", list_page),
+            ("week", "本周速览", week_page),
+            ("cal", "影视日历", cal_page),
+            ("fresh", "新剧发现", fresh_page),
+            ("soon", "待映倒计时", soon_page),
+        ]
+        elements.append({
+            "component": "VTabs",
+            "props": {"model": "_dtTab", "fixed-tabs": True, "density": "compact",
+                      "class": "mt-2"},
+            "content": [{"component": "VTab", "props": {"value": v}, "text": t}
+                        for v, t, _ in tabs],
+        })
+        elements.append({
+            "component": "VWindow",
+            "props": {"model": "_dtTab"},
+            "content": [{"component": "VWindowItem", "props": {"value": v}, "content": c}
+                        for v, _t, c in tabs],
+        })
         return elements
 
     def _cover_proxy(self, url: str) -> str:
@@ -946,6 +1003,25 @@ class DramaTracker(_PluginBase):
         "window.__dtSearch(q,box);"
         "}"
     )
+
+    # 「立即检查」按钮：调 /check 端点，期间按钮禁用防重复点击
+    _CHECK_JS = (
+        "function(e){var btn=(e&&e.target)?e.target:null;var t=btn?btn.textContent:'';"
+        "if(btn){btn.disabled=true;btn.textContent='检查中…';}"
+        "window.MoviePilotAPI.post('plugin/DramaTracker/check',{}).then(function(r){var d=r.data||r;"
+        "if(btn){btn.disabled=false;btn.textContent=t;}"
+        "alert((d.success?'✅ ':'⚠️ ')+(d.message||'检查完成'));})"
+        ".catch(function(err){if(btn){btn.disabled=false;btn.textContent=t;}"
+        "alert('请求失败：'+((err&&err.message)||err));});}"
+    )
+
+    @staticmethod
+    def _fresh_js(title: str) -> str:
+        """新剧发现卡「追」按钮：不带平台调订阅端点，服务端自动搜索挑选。"""
+        safe = json.dumps(title or "", ensure_ascii=False)
+        return ("function(){window.MoviePilotAPI.post('plugin/DramaTracker/subscribe',{name:" + safe + "})"
+                ".then(function(r){var d=r.data||r;alert(d.message||'完成');})"
+                ".catch(function(err){alert('请求失败：'+((err&&err.message)||err));});}")
 
     def get_dashboard_meta(self) -> Optional[List[dict]]:
         if not self.get_state():

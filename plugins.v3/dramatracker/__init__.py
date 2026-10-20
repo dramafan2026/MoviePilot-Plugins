@@ -60,7 +60,7 @@ class DramaTracker(_PluginBase):
     plugin_name = "追剧助手"
     plugin_desc = "五平台追剧订阅，新集/完结/断更推送，官方排播时刻与追剧日历，豆瓣新剧发现、待映倒计时，微信即可追更。"
     plugin_icon = "DramaTracker.png"
-    plugin_version = "1.1.0"
+    plugin_version = "1.1.1"
     plugin_author = "dramafan2026"
     author_url = "https://github.com/dramafan2026/MoviePilot-Plugins"
     plugin_config_prefix = "dramatracker_"
@@ -276,11 +276,38 @@ class DramaTracker(_PluginBase):
 
         elements: List[dict] = []
 
+        # 搜索订阅卡：始终置顶，订阅动作不离开详情页
+        elements.append({
+            "component": "VCard",
+            "props": {"variant": "tonal", "title": "🔍 搜索订阅",
+                      "subtitle": "五平台聚合：爱奇艺 / 腾讯 / 优酷 / B站 / 芒果"},
+            "content": [
+                {"component": "VRow", "props": {"no-gutters": True, "align": "center",
+                                                "class": "pt-3 gap-2"}, "content": [
+                    {"component": "VCol", "props": {"cols": "8"}, "content": [{
+                        "component": "VTextField",
+                        "props": {"label": "输入剧名搜索候选", "density": "compact",
+                                  "hide-details": True, "clearable": True},
+                    }]},
+                    {"component": "VCol", "props": {"cols": "4"}, "content": [{
+                        "component": "VBtn",
+                        "props": {"color": "primary", "variant": "flat", "block": True,
+                                  "text": "搜 索", "onclick": self._SEARCH_JS},
+                    }]},
+                ]},
+                {"component": "VDivider", "props": {"class": "mt-3"}},
+                {"component": "VCardText",
+                 "props": {"id": "dt-search-result",
+                           "innerHTML": "输入剧名后点「搜索」，点候选右侧「订阅」即开启追更。"},
+                },
+            ]},
+        )
+
         if not subs:
             elements.append({
                 "component": "VAlert",
                 "props": {"type": "info", "variant": "tonal",
-                          "text": "还没有订阅剧集。在「工作台」搜索剧集后点击订阅，即可开启追更提醒。"},
+                          "text": "还没有订阅剧集。在上方搜索框输入剧名，点「搜索」后一键订阅，即可开启追更提醒。"},
             })
         else:
             if views:
@@ -893,7 +920,7 @@ class DramaTracker(_PluginBase):
     _SEARCH_JS = (
         "function(e){"
         "if(!window.__dtInit){window.__dtInit=1;"
-        "window.__dtSearch=function(q){var box=document.getElementById('dt-search-result');if(!box)return;"
+        "window.__dtSearch=function(q,box){if(!box)return;"
         "box.innerHTML='<div style=\"opacity:.6;font-size:12px;padding:6px 0\">搜索中，约需几秒…</div>';"
         "window.MoviePilotAPI.post('plugin/DramaTracker/search',{name:q}).then(function(r){var d=r.data||r;"
         "if(!d.success){box.innerHTML='<div style=\"color:#ff6b6b;font-size:12px\">'+(d.message||'搜索失败')+'</div>';return;}"
@@ -914,9 +941,9 @@ class DramaTracker(_PluginBase):
         "}"
         "var card=(e&&e.target&&e.target.closest)?e.target.closest('.v-card'):null;"
         "var inp=card?card.querySelector('input'):null;var q=inp?inp.value.trim():'';"
-        "var box=document.getElementById('dt-search-result');"
+        "var box=card?card.querySelector('#dt-search-result'):null;"
         "if(!q){if(box)box.innerHTML='<div style=\"opacity:.6;font-size:12px\">请输入剧名</div>';return;}"
-        "window.__dtSearch(q);"
+        "window.__dtSearch(q,box);"
         "}"
     )
 

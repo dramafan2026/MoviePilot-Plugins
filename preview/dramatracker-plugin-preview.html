@@ -63,14 +63,19 @@
   .card-hd{padding:13px 16px 0}
   .card-hd .t{font-size:14.5px;font-weight:700}
   .card-hd .s{font-size:12px;color:var(--fg-dim);margin-top:2px}
-  .searchrow{display:flex;gap:10px;padding:12px 16px}
-  .field{flex:1 1 auto;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);
-    border-radius:8px;padding:0 12px;height:42px}
-  .field input{border:0;outline:0;flex:1;font-size:13.5px;font-family:inherit;background:transparent;color:var(--fg)}
-  .field input::placeholder{color:#9aa2b1}
-  .searchrow .btn{flex:0 0 112px}
-  .divider{height:1px;background:var(--line);margin:0 16px}
   .hint{padding:11px 16px 14px;font-size:12.5px;color:var(--fg-dim);line-height:1.6}
+
+  /* 搜索候选卡（v1.2.1：候选来自配置页「搜索剧名」的检索缓存） */
+  .cands{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:12px 16px 4px}
+  .cand{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+    display:flex;flex-direction:column;box-shadow:0 2px 8px rgba(20,30,60,.05);transition:.18s}
+  .cand:hover{transform:translateY(-3px);box-shadow:0 8px 18px rgba(20,30,60,.12)}
+  .cand .imgwrap{position:relative}
+  .cand .img{aspect-ratio:2/3;width:100%;object-fit:cover;background:#e8ebf0;display:block}
+  .cand .meta{padding:7px 9px 6px;font-size:11.5px;line-height:1.45;color:var(--fg);flex:1 1 auto}
+  .cand .sub{margin:0 8px 9px;border:0;background:var(--primary);color:#fff;
+    border-radius:7px;padding:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+  .cand .sub:hover{background:#1257a5}
 
   /* 标签页 */
   .tabs{display:flex;gap:4px;margin-top:18px;border-bottom:1px solid var(--line);overflow-x:auto}
@@ -144,7 +149,7 @@
     background:var(--chip);border-radius:5px;padding:1px 6px;color:var(--fg)}
   @media (max-width:760px){
     .stats,.actions{grid-template-columns:repeat(2,1fr)}
-    .wall{grid-template-columns:repeat(3,1fr)}
+    .wall,.cands{grid-template-columns:repeat(2,1fr)}
     .grid2{grid-template-columns:1fr}
     .sched{max-width:none}
     .desktop-only{display:none}
@@ -163,7 +168,7 @@
       </div>
       <div class="chips">
         <span class="chip on">● 已启用</span>
-        <span class="chip v">v1.2.0</span>
+        <span class="chip v">v1.2.1</span>
         <span class="chip desktop-only">dramafan2026</span>
       </div>
     </div>
@@ -182,22 +187,35 @@
         <button class="btn primary" onclick="flash(this)">⚡ 立即检查</button>
       </div>
 
-      <!-- 搜索订阅 -->
+      <!-- 搜索订阅（v1.2.1：候选来自配置页「搜索剧名」检索缓存） -->
       <div class="card">
         <div class="card-hd">
-          <div class="t">🔍 搜索订阅</div>
-          <div class="s">五平台聚合：爱奇艺 / 腾讯 / 优酷 / B站 / 芒果</div>
+          <div class="t">🔍 搜索结果 · 庆余年</div>
+          <div class="s">点「订阅」即开启追更</div>
         </div>
-        <div class="searchrow">
-          <label class="field">
-            <span style="color:#9aa2b1">🔎</span>
-            <input type="text" placeholder="输入剧名搜索候选" id="q" value="庆余年">
-          </label>
-          <button class="btn primary" onclick="doSearch()">搜 索</button>
+        <div class="cands">
+          <div class="cand">
+            <div class="imgwrap"><img class="img" src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=ancient%20chinese%20costume%20drama%20poster%2C%20young%20swordsman%20in%20palace%2C%20cinematic%20lighting&image_size=portrait_4_3" alt=""></div>
+            <div class="meta">庆余年 第三季〔腾讯视频〕 18 / 36</div>
+            <button class="sub">＋ 订阅</button>
+          </div>
+          <div class="cand">
+            <div class="imgwrap"><img class="img" src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=ancient%20chinese%20costume%20drama%20poster%2C%20scholar%20in%20white%20robe%2C%20snowy%20courtyard&image_size=portrait_4_3" alt=""></div>
+            <div class="meta">庆余年 第二季〔爱奇艺〕 36 集 · 已完结</div>
+            <button class="sub">＋ 订阅</button>
+          </div>
+          <div class="cand">
+            <div class="imgwrap"><img class="img" src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=ancient%20chinese%20costume%20drama%20poster%2C%20epic%20battle%20scene%2C%20golden%20hour&image_size=portrait_4_3" alt=""></div>
+            <div class="meta">庆余年 第一季〔优酷〕 46 集 · 已完结</div>
+            <button class="sub">＋ 订阅</button>
+          </div>
+          <div class="cand">
+            <div class="imgwrap"><img class="img" src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=chinese%20animation%20fantasy%20poster%2C%20cultivation%20theme%2C%20mystical%20blue%20glow&image_size=portrait_4_3" alt=""></div>
+            <div class="meta">庆余年 动画〔B站〕 12 集</div>
+            <button class="sub">＋ 订阅</button>
+          </div>
         </div>
-        <div class="divider"></div>
-        <!-- 搜索结果区（点搜索后渲染） -->
-        <div id="result" class="hint">输入剧名后点「搜索」，点候选右侧「订阅」即开启追更。</div>
+        <div class="hint">候选在「配置」页填写「搜索剧名」并保存后自动检索生成（已过滤花絮 / 解说 / 单集切片）；无候选时此处显示配置指引，也可发送命令 /dt_search 剧名。封面经插件 /cover 代理加载，规避豆瓣防盗链。</div>
       </div>
 
       <!-- 五标签页 -->
@@ -376,11 +394,12 @@
         </ul>
       </div>
       <div class="box">
-        <h3>⚡ 立即检查 + 🔍 搜索订阅</h3>
+        <h3>⚡ 立即检查 + 🔍 搜索订阅（v1.2.1）</h3>
         <ul>
           <li>一键手动跑一次全量检查并推送，不用等定时任务</li>
-          <li>搜索框聚合五平台，结果内直接「订阅」，不离开详情页</li>
-          <li>平台风控/超时原因会透传到结果区，不静默吞错</li>
+          <li>搜索订阅两步走：到「配置」页填写<b>「搜索剧名」</b>并保存 → 详情页自动列出五平台候选，点「＋ 订阅」即开启追更</li>
+          <li>也可发送远程命令 <span class="kbd">/dt_search 剧名</span> 直接搜索并订阅</li>
+          <li>按钮交互走宿主原生事件；平台风控/超时原因透传展示，不静默吞错</li>
         </ul>
       </div>
       <div class="box">
@@ -417,25 +436,7 @@
     panes[+t.dataset.i].classList.add('show');
   }));
 
-  // 搜索模拟
-  function doSearch(){
-    const q = document.getElementById('q').value.trim() || '剧名';
-    document.getElementById('result').innerHTML =
-      '为你找到 <b>3</b> 个候选（已自动过滤花絮/解说/单集切片）：' +
-      '<div style="margin-top:8px;display:flex;flex-direction:column;gap:7px">' +
-        row('庆余年 第三季','腾讯视频','qq','共 36 集 · 更新至 18') +
-        row('庆余年 第二季','爱奇艺','iqiyi','共 36 集 · 已完结') +
-        row('庆余年 特别篇','优酷','youku','共 6 集 · 花絮类已过滤') +
-      '</div>';
-  }
-  function row(name, pl, cls, info){
-    return '<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);' +
-      'border-radius:8px;padding:8px 11px">' +
-      '<span style="font-weight:600;font-size:13px">'+name+'</span>' +
-      '<span class="pl '+cls+'">'+pl+'</span>' +
-      '<span style="font-size:12px;color:var(--fg-dim);flex:1">'+info+'</span>' +
-      '<button class="btn ghost" style="padding:6px 14px;font-size:12px">订阅</button></div>';
-  }
+  // 立即检查模拟
   function flash(b){
     const t = b.textContent;
     b.textContent = '检查中…';

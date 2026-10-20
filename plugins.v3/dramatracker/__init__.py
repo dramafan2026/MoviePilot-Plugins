@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from typing import Any, List, Optional, Tuple, Type
-import json
 
 from apscheduler.triggers.cron import CronTrigger
 from fastapi.responses import Response as FastAPIResponse
@@ -52,6 +51,7 @@ def _default_config() -> dict:
         "upcoming_notify": True,
         "weekly_report": True,
         "onlyonce": False,
+        "search_query": "",
     }
 
 
@@ -61,7 +61,7 @@ class DramaTracker(_PluginBase):
     plugin_name = "追剧助手"
     plugin_desc = "五平台追剧订阅，新集/完结/断更推送，官方排播时刻与追剧日历，豆瓣新剧发现、待映倒计时，微信即可追更。"
     plugin_icon = "DramaTracker.png"
-    plugin_version = "1.2.0"
+    plugin_version = "1.2.1"
     plugin_author = "dramafan2026"
     author_url = "https://github.com/dramafan2026/MoviePilot-Plugins"
     plugin_config_prefix = "dramatracker_"
@@ -83,6 +83,13 @@ class DramaTracker(_PluginBase):
             self.save_data("state", {"shows": {}, "hot_seen": {}, "hot_last": "",
                                      "fresh": [], "pending": "", "weekly_last": "",
                                      "upcoming_last": ""})
+
+        # 配置页「搜索剧名」变化 → 后台检索五平台，候选缓存供详情页渲染
+        query = str(cfg.get("search_query") or "").strip()
+        if query and query != (self.get_data("search_last") or ""):
+            self.save_data("search_last", query)
+            import threading
+            threading.Thread(target=self._cache_search, args=(query,), daemon=True).start()
 
         # 「立即运行一次」：延迟 3 秒在后台线程执行
         if cfg.get("onlyonce"):
@@ -133,6 +140,22 @@ class DramaTracker(_PluginBase):
                                     "component": "VSwitch",
                                     "props": {"model": "onlyonce", "label": "立即运行一次",
                                               "color": "success"},
+                                }],
+                            },
+                        ],
+                    },
+                    {
+                        "component": "VRow",
+                        "content": [
+                            {
+                                "component": "VCol",
+                                "props": {"cols": 12, "md": 6},
+                                "content": [{
+                                    "component": "VTextField",
+                                    "props": {"model": "search_query", "label": "搜索剧名",
+                                              "placeholder": "例如：庆余年",
+                                              "clearable": True, "persistent-hint": True,
+                                              "hint": "保存配置即后台检索五平台，候选在「详情」页一键订阅"},
                                 }],
                             },
                         ],
@@ -219,7 +242,8 @@ class DramaTracker(_PluginBase):
         return {
             "component": "VExpansionPanel",
             "content": [
-                {"component": "VExpansionPanelTitle", "props": {"text": title}},
+                {"component": "VExpansionPanelTitle", "text": title,
+                 "props": {"class": "font-weight-bold"}},
                 {"component": "VExpansionPanelText", "content": content},
             ],
         }
@@ -309,10 +333,10 @@ class DramaTracker(_PluginBase):
                 "component": "VCard",
                 "props": {"variant": "tonal", "class": "text-center py-3"},
                 "content": [
-                    {"component": "VCardText",
-                     "props": {"class": "text-h5 font-weight-bold", "text": str(num)}},
-                    {"component": "VCardText",
-                     "props": {"class": "text-caption text-medium-emphasis", "text": label}},
+                    {"component": "VCardText", "text": str(num),
+                     "props": {"class": "text-h5 font-weight-bold"}},
+                    {"component": "VCardText", "text": label,
+                     "props": {"class": "text-caption text-medium-emphasis"}},
                 ],
             }]}
 
@@ -326,38 +350,15 @@ class DramaTracker(_PluginBase):
         elements.append({
             "component": "VRow", "props": {"class": "mb-1"}, "content": [
                 {"component": "VCol", "props": {"cols": 6, "sm": 3}, "content": [{
-                    "component": "VBtn",
-                    "props": {"color": "primary", "variant": "flat", "block": True,
-                              "text": "⚡ 立即检查", "onclick": self._CHECK_JS},
+                    "component": "VBtn", "text": "⚡ 立即检查",
+                    "props": {"color": "primary", "variant": "flat", "block": True},
+                    "events": {"click": {"api": f"plugin/{PLUGIN_ID}/check",
+                                         "method": "post", "params": {}}},
                 }]},
             ]})
 
-        # 搜索订阅卡：始终置顶，订阅动作不离开详情页
-        elements.append({
-            "component": "VCard",
-            "props": {"variant": "tonal", "title": "🔍 搜索订阅",
-                      "subtitle": "五平台聚合：爱奇艺 / 腾讯 / 优酷 / B站 / 芒果"},
-            "content": [
-                {"component": "VRow", "props": {"no-gutters": True, "align": "center",
-                                                "class": "pt-3 gap-2"}, "content": [
-                    {"component": "VCol", "props": {"cols": "8"}, "content": [{
-                        "component": "VTextField",
-                        "props": {"label": "输入剧名搜索候选", "density": "compact",
-                                  "hide-details": True, "clearable": True},
-                    }]},
-                    {"component": "VCol", "props": {"cols": "4"}, "content": [{
-                        "component": "VBtn",
-                        "props": {"color": "primary", "variant": "flat", "block": True,
-                                  "text": "搜 索", "onclick": self._SEARCH_JS},
-                    }]},
-                ]},
-                {"component": "VDivider", "props": {"class": "mt-3"}},
-                {"component": "VCardText",
-                 "props": {"id": "dt-search-result",
-                           "innerHTML": "输入剧名后点「搜索」，点候选右侧「订阅」即开启追更。"},
-                },
-            ]},
-        )
+        # 搜索订阅卡：候选由配置页「搜索剧名」检索后缓存（详情页输入框无法回传后端）
+        elements.append(self._search_card())
 
         # ---- 五标签页（VTabs 与 VWindow 共享 model 名实现联动）----
         week_rows = []
@@ -376,7 +377,7 @@ class DramaTracker(_PluginBase):
             {"title": "进度", "key": "进度"}, {"title": "排播", "key": "排播"},
             {"title": "下次更新", "key": "下次更新"}])] if views else [{
                 "component": "VAlert", "props": {"type": "info", "variant": "tonal",
-                                                 "text": "还没有订阅。上方搜索框输入剧名，点「搜索」一键订阅。"}}]
+                                                 "text": "还没有订阅。到「配置」页填写「搜索剧名」并保存，或在「新剧发现」点「追」。"}}]
 
         week_page = [{"component": "VCard", "props": {"variant": "tonal",
                       "subtitle": "按官方排播优先、历史规律兜底归档"},
@@ -406,12 +407,15 @@ class DramaTracker(_PluginBase):
                              "props": {"src": self._cover_proxy(f.get("cover", "")),
                                        "aspect-ratio": "2/3", "cover": True}},
                             {"component": "VCardText",
-                             "props": {"class": "text-caption",
-                                       "text": f"{f.get('title', '')} {f.get('episodes', '')}"}},
-                            {"component": "VBtn",
-                             "props": {"size": "x-small", "color": "primary", "variant": "tonal",
-                                       "text": "＋ 追", "block": True,
-                                       "onclick": self._fresh_js(f.get("title", ""))}},
+                             "text": f"{f.get('title', '')} {f.get('episodes', '')}",
+                             "props": {"class": "text-caption"}},
+                            {"component": "VBtn", "text": "＋ 追",
+                             "props": {"size": "x-small", "color": "primary",
+                                       "variant": "tonal", "block": True},
+                             "events": {"click": {
+                                 "api": f"plugin/{PLUGIN_ID}/autosub",
+                                 "method": "post",
+                                 "params": {"name": f.get("title", "")}}}},
                         ],
                     }],
                 })
@@ -466,6 +470,85 @@ class DramaTracker(_PluginBase):
             return f"/api/v1/plugin/{PLUGIN_ID}/cover?url={url}"
         return url
 
+    def _cache_search(self, query: str) -> None:
+        """后台检索五平台并把候选写入插件存储，供详情页渲染。"""
+        try:
+            res = self.api_search(query)
+            self.save_data("search_results", {
+                "query": query, "items": (res.get("items") or [])[:12],
+                "errors": res.get("errors") or [],
+            })
+        except Exception as e:
+            logger.warning(f"追剧助手搜索失败：{e}")
+            self.save_data("search_results", {"query": query, "items": [],
+                                              "errors": [f"搜索失败：{e}"]})
+
+    def _search_card(self, with_buttons: bool = True) -> dict:
+        """搜索订阅卡：展示配置页关键词的检索候选，点「订阅」经原生事件调入后端。
+
+        工作台（DashboardRender）不支持 events，故 with_buttons=False 时只展示候选。
+        """
+        sr = self.get_data("search_results") or {}
+        items = sr.get("items") or []
+        query = str(sr.get("query") or "")
+        errors = [e for e in (sr.get("errors") or []) if e]
+        if not items:
+            content: list[dict] = [{
+                "component": "VAlert", "props": {
+                    "type": "info", "variant": "tonal", "density": "compact",
+                    "text": "在「配置」页填写「搜索剧名」并保存，本页即列出五平台候选；"
+                            "也可发送命令 /dt_search 剧名。"}}]
+            for err in errors:
+                content.append({"component": "VAlert", "props": {
+                    "type": "warning", "variant": "tonal", "density": "compact",
+                    "text": err}})
+            return {"component": "VCard",
+                    "props": {"variant": "tonal", "title": "🔍 搜索订阅"},
+                    "content": content}
+        if not with_buttons:
+            return {"component": "VCard",
+                    "props": {"variant": "tonal",
+                              "title": f"🔍 搜索结果 · {query}" if items else "🔍 搜索订阅",
+                              "subtitle": "在插件详情页点「订阅」"},
+                    "content": [{"component": "VList", "props": {"density": "compact"},
+                                 "content": [{
+                                     "component": "VListItem", "props": {
+                                         "title": it.get("title", ""),
+                                         "subtitle": f"{core.PLATFORM_NAMES.get(it.get('platform', ''), '')} · "
+                                                     f"{core.progress_text(it.get('current', 0), it.get('total', 0), it.get('finished', False))}"}}
+                                     for it in items] or [{
+                                     "component": "VListItem",
+                                     "props": {"title": "尚未搜索",
+                                               "subtitle": "到「配置」页填写「搜索剧名」并保存"}}]}]}
+        rows = []
+        for it in items:
+            rows.append({
+                "component": "VCol", "props": {"cols": 6, "md": 3}, "content": [{
+                    "component": "VCard", "props": {"variant": "tonal"},
+                    "content": [
+                        {"component": "VImg", "props": {
+                            "src": self._cover_proxy(it.get("cover", "")),
+                            "aspect-ratio": "2/3", "cover": True}},
+                        {"component": "VCardText",
+                         "text": f"{it.get('title', '')}"
+                                 f"〔{core.PLATFORM_NAMES.get(it.get('platform', ''), '')}〕"
+                                 f" {core.progress_text(it.get('current', 0), it.get('total', 0), it.get('finished', False))}",
+                         "props": {"class": "text-caption"}},
+                        {"component": "VBtn", "text": "＋ 订阅",
+                         "props": {"size": "small", "color": "primary",
+                                   "variant": "flat", "block": True},
+                         "events": {"click": {
+                             "api": f"plugin/{PLUGIN_ID}/subscribe", "method": "post",
+                             "params": {"name": it.get("title", ""),
+                                        "platform": it.get("platform", ""),
+                                        "cover": it.get("cover", "")}}}},
+                    ]}]})
+        return {"component": "VCard",
+                "props": {"variant": "tonal", "title": f"🔍 搜索结果 · {query}",
+                          "subtitle": "点「订阅」即开启追更"},
+                "content": [{"component": "VRow", "props": {"class": "pt-2"},
+                             "content": rows}]}
+
     # ---------- 动态 API ----------
 
     def get_api(self) -> List[dict]:
@@ -476,6 +559,8 @@ class DramaTracker(_PluginBase):
              "auth": "bear", "summary": "订阅剧集"},
             {"path": "/quick_add", "endpoint": self.api_subscribe, "methods": ["GET"],
              "auth": "apikey", "summary": "订阅剧集（iOS 快捷指令/外部系统）"},
+            {"path": "/autosub", "endpoint": self.api_autosub, "methods": ["POST"],
+             "auth": "bear", "summary": "按剧名自动搜索并订阅最佳候选"},
             {"path": "/unsubscribe", "endpoint": self.api_unsubscribe, "methods": ["GET", "POST"],
              "auth": "bear", "summary": "取消订阅"},
             {"path": "/list", "endpoint": self.api_list, "methods": ["GET"],
@@ -520,6 +605,17 @@ class DramaTracker(_PluginBase):
         # 立即拉一次建立基线
         self._check_one_now(p, name.strip())
         return {"success": True, "message": f"已订阅《{name.strip()}》", "key": key}
+
+    def api_autosub(self, name: str = "") -> dict:
+        """按剧名五平台聚合搜索并订阅最佳候选（平台自动识别）。"""
+        if not name.strip():
+            return {"success": False, "message": "缺少剧名"}
+        items, errors = client_search_all(None, name.strip())
+        if not items:
+            return {"success": False,
+                    "message": f"没有搜到《{name.strip()}》的正剧" + ("；" + "；".join(errors) if errors else "")}
+        top = items[0]
+        return self.api_subscribe(top["title"], top.get("platform", ""), top.get("cover", ""))
 
     def api_unsubscribe(self, key: str = "") -> dict:
         if key in self._subscriptions:
@@ -972,139 +1068,61 @@ class DramaTracker(_PluginBase):
 
     # ---------- 仪表板 ----------
 
-    # 搜索订阅卡的交互 JS：自举定义全局 __dtSearch/__dtSub，从按钮向上找卡片内的输入框取词，
-    # MoviePilotAPI（前端全局，已带认证）调插件 API，DOM 注入渲染候选列表。
-    _SEARCH_JS = (
-        "function(e){"
-        "if(!window.__dtInit){window.__dtInit=1;"
-        "window.__dtSearch=function(q,box){if(!box)return;"
-        "box.innerHTML='<div style=\"opacity:.6;font-size:12px;padding:6px 0\">搜索中，约需几秒…</div>';"
-        "window.MoviePilotAPI.post('plugin/DramaTracker/search',{name:q}).then(function(r){var d=r.data||r;"
-        "if(!d.success){box.innerHTML='<div style=\"color:#ff6b6b;font-size:12px\">'+(d.message||'搜索失败')+'</div>';return;}"
-        "if(!d.items||!d.items.length){box.innerHTML='<div style=\"opacity:.6;font-size:12px\">没有找到候选"
-        "'+(d.errors&&d.errors.length?'；'+d.errors.join('；'):'')+'</div>';return;}"
-        "box.innerHTML=d.items.map(function(it){"
-        "var args=[it.title||'',it.platform||'',it.cover||''].map(function(s){return JSON.stringify(s)}).join(',');"
-        "return '<div style=\"display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed rgba(128,128,128,.3)\">'"
-        "+'<img src=\"'+(it.cover||'')+'\" style=\"width:32px;height:44px;object-fit:cover;border-radius:4px;background:rgba(128,128,128,.2)\" onerror=\"this.style.display=\\'none\\'\">'"
-        "+'<div style=\"flex:1;min-width:0\"><div style=\"font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">'+(it.title||'')+'</div>'"
-        "+'<div style=\"font-size:11px;opacity:.65\">'+(it.platform||'')+((it.current!=null&&it.current!=='')?' · '+it.current+'集':'')+'</div></div>'"
-        "+'<button onclick=\"window.__dtSub('+args+')\" style=\"flex:none;border:none;border-radius:6px;padding:4px 12px;background:#6366f1;color:#fff;font-size:12px;cursor:pointer\">订阅</button></div>';"
-        "}).join('');"
-        "}).catch(function(err){box.innerHTML='<div style=\"color:#ff6b6b;font-size:12px\">请求失败：'+((err&&err.message)||err)+'</div>';});};"
-        "window.__dtSub=function(name,platform,cover){"
-        "window.MoviePilotAPI.post('plugin/DramaTracker/subscribe',{name:name,platform:platform,cover:cover})"
-        ".then(function(r){var d=r.data||r;window.$message&&(window.$message.success(d.message||'已订阅'),0);alert(d.message||'完成');});};"
-        "}"
-        "var card=(e&&e.target&&e.target.closest)?e.target.closest('.v-card'):null;"
-        "var inp=card?card.querySelector('input'):null;var q=inp?inp.value.trim():'';"
-        "var box=card?card.querySelector('#dt-search-result'):null;"
-        "if(!q){if(box)box.innerHTML='<div style=\"opacity:.6;font-size:12px\">请输入剧名</div>';return;}"
-        "window.__dtSearch(q,box);"
-        "}"
-    )
-
-    # 「立即检查」按钮：调 /check 端点，期间按钮禁用防重复点击
-    _CHECK_JS = (
-        "function(e){var btn=(e&&e.target)?e.target:null;var t=btn?btn.textContent:'';"
-        "if(btn){btn.disabled=true;btn.textContent='检查中…';}"
-        "window.MoviePilotAPI.post('plugin/DramaTracker/check',{}).then(function(r){var d=r.data||r;"
-        "if(btn){btn.disabled=false;btn.textContent=t;}"
-        "alert((d.success?'✅ ':'⚠️ ')+(d.message||'检查完成'));})"
-        ".catch(function(err){if(btn){btn.disabled=false;btn.textContent=t;}"
-        "alert('请求失败：'+((err&&err.message)||err));});}"
-    )
-
-    @staticmethod
-    def _fresh_js(title: str) -> str:
-        """新剧发现卡「追」按钮：不带平台调订阅端点，服务端自动搜索挑选。"""
-        safe = json.dumps(title or "", ensure_ascii=False)
-        return ("function(){window.MoviePilotAPI.post('plugin/DramaTracker/subscribe',{name:" + safe + "})"
-                ".then(function(r){var d=r.data||r;alert(d.message||'完成');})"
-                ".catch(function(err){alert('请求失败：'+((err&&err.message)||err));});}")
-
     def get_dashboard_meta(self) -> Optional[List[dict]]:
+        """仪表盘元信息：key 在当前插件内唯一。"""
         if not self.get_state():
             return None
-        state = self.get_data("state") or {"shows": {}}
-        recs = state.get("shows") or {}
-        today_hits = 0
-        for key, sc in (self._subscriptions or {}).items():
-            rec = recs.get(key) or {}
-            if rec and core.next_update(rec).get("next_days") == 0:
-                today_hits += 1
         return [
-            {"key": f"{PLUGIN_ID}.Today", "count": today_hits},
-            {"key": f"{PLUGIN_ID}.Search", "count": 0},
-            {"key": f"{PLUGIN_ID}.Upcoming", "count": 0},
+            {"key": "Today", "name": "追剧助手 · 今日更新"},
+            {"key": "Search", "name": "追剧助手 · 搜索订阅"},
+            {"key": "Upcoming", "name": "追剧助手 · 待映倒计时"},
         ]
 
-    def get_dashboard(self, **kwargs) -> Optional[Tuple[dict, dict, List[dict]]]:
+    def get_dashboard(self, key: str = "", **kwargs) -> Optional[Tuple[dict, dict, List[dict]]]:
+        """仪表盘页面：(列配置, 全局配置, 页面元素 JSON)。"""
         if not self.get_state():
             return None
         today_rows, upcoming_rows = self._dashboard_data()
-        return {
-            "dashboard": {
-                "left": [{"id": f"{PLUGIN_ID}.Today", "name": "今日更新"},
-                         {"id": f"{PLUGIN_ID}.Search", "name": "搜索订阅"}],
-                "right": [{"id": f"{PLUGIN_ID}.Upcoming", "name": "待映倒计时"}],
-            },
-            "global": {},
-            "elements": [
-                {
-                    "component": "VCard",
-                    "props": {"variant": "tonal", "title": "📺 今日更新",
-                              "subtitle": f"共 {len(today_rows)} 部今日档期"},
-                    "content": [{
-                        "component": "VList",
-                        "props": {"density": "compact"},
-                        "content": [
-                            {"component": "VListItem",
-                             "props": {"title": r["title"], "subtitle": f"{r['platform_name']} · {r['next_text']}"}}
-                            for r in today_rows
-                        ] or [{"component": "VListItem", "props": {"title": "今日暂无更新", "subtitle": "安心休息～"}}],
-                    }],
-                },
-                {
-                    "component": "VCard",
-                    "props": {"variant": "tonal", "title": "🔍 搜索订阅",
-                              "subtitle": "五平台聚合：爱奇艺 / 腾讯 / 优酷 / B站 / 芒果"},
-                    "content": [
-                        {"component": "VRow", "props": {"no-gutters": True, "align": "center",
-                                                        "class": "pt-3 gap-2"}, "content": [
-                            {"component": "VCol", "props": {"cols": "8"}, "content": [{
-                                "component": "VTextField",
-                                "props": {"label": "输入剧名搜索候选", "density": "compact",
-                                          "hide-details": True, "clearable": True},
-                            }]},
-                            {"component": "VCol", "props": {"cols": "4"}, "content": [{
-                                "component": "VBtn",
-                                "props": {"color": "primary", "variant": "flat", "block": True,
-                                          "text": "搜 索", "onclick": self._SEARCH_JS},
-                            }]},
-                        ]},
-                        {"component": "VDivider", "props": {"class": "mt-3"}},
-                        {"component": "VCardText",
-                         "props": {"id": "dt-search-result",
-                                   "innerHTML": "输入剧名后点「搜索」，候选来自五个平台，点订阅即开启追更。"},
-                        },
-                    ]},
-                {
-                    "component": "VCard",
-                    "props": {"variant": "tonal", "title": "🎬 待映倒计时",
-                              "subtitle": "豆瓣即将上映"},
-                    "content": [{
-                        "component": "VList",
-                        "props": {"density": "compact"},
-                        "content": [
-                            {"component": "VListItem",
-                             "props": {"title": r["title"], "subtitle": f"{r['release_text']} · 还有 {r['days']} 天"}}
-                            for r in upcoming_rows
-                        ] or [{"component": "VListItem", "props": {"title": "暂无即将上映数据"}}],
-                    }],
-                },
-            ],
+        today_el = {
+            "component": "VCard",
+            "props": {"variant": "tonal", "title": "📺 今日更新",
+                      "subtitle": f"共 {len(today_rows)} 部今日档期"},
+            "content": [{
+                "component": "VList", "props": {"density": "compact"},
+                "content": [
+                    {"component": "VListItem",
+                     "props": {"title": r["title"],
+                               "subtitle": f"{r['platform_name']} · {r['next_text']}"}}
+                    for r in today_rows
+                ] or [{"component": "VListItem",
+                       "props": {"title": "今日暂无更新", "subtitle": "安心休息～"}}],
+            }],
         }
+        soon_el = {
+            "component": "VCard",
+            "props": {"variant": "tonal", "title": "🎬 待映倒计时",
+                      "subtitle": "豆瓣即将上映"},
+            "content": [{
+                "component": "VList", "props": {"density": "compact"},
+                "content": [
+                    {"component": "VListItem",
+                     "props": {"title": r["title"],
+                               "subtitle": f"{r['release_text']} · 还有 {r['days']} 天"}}
+                    for r in upcoming_rows
+                ] or [{"component": "VListItem",
+                       "props": {"title": "暂无即将上映数据"}}],
+            }],
+        }
+        search_el = self._search_card(with_buttons=False)
+        if key == "Today":
+            elements = [today_el]
+        elif key == "Search":
+            elements = [search_el]
+        elif key == "Upcoming":
+            elements = [soon_el]
+        else:  # 兼容缺省 key 的旧调用
+            elements = [today_el, search_el, soon_el]
+        return {"cols": 12, "md": 6}, {"refresh": 300, "border": True, "title": "追剧助手"}, elements
 
     def _dashboard_data(self) -> tuple[list[dict], list[dict]]:
         state = self.get_data("state") or {"shows": {}}

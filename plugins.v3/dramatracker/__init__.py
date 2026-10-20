@@ -60,7 +60,7 @@ class DramaTracker(_PluginBase):
     plugin_name = "追剧助手"
     plugin_desc = "五平台追剧订阅，新集/完结/断更推送，官方排播时刻与追剧日历，豆瓣新剧发现、待映倒计时，微信即可追更。"
     plugin_icon = "DramaTracker.png"
-    plugin_version = "1.0.0"
+    plugin_version = "1.1.0"
     plugin_author = "dramafan2026"
     author_url = "https://github.com/dramafan2026/MoviePilot-Plugins"
     plugin_config_prefix = "dramatracker_"
@@ -386,7 +386,7 @@ class DramaTracker(_PluginBase):
 
     def get_api(self) -> List[dict]:
         return [
-            {"path": "/search", "endpoint": self.api_search, "methods": ["GET"],
+            {"path": "/search", "endpoint": self.api_search, "methods": ["GET", "POST"],
              "auth": "bear", "summary": "五平台聚合搜索候选"},
             {"path": "/subscribe", "endpoint": self.api_subscribe, "methods": ["GET", "POST"],
              "auth": "bear", "summary": "订阅剧集"},
@@ -888,6 +888,38 @@ class DramaTracker(_PluginBase):
 
     # ---------- 仪表板 ----------
 
+    # 搜索订阅卡的交互 JS：自举定义全局 __dtSearch/__dtSub，从按钮向上找卡片内的输入框取词，
+    # MoviePilotAPI（前端全局，已带认证）调插件 API，DOM 注入渲染候选列表。
+    _SEARCH_JS = (
+        "function(e){"
+        "if(!window.__dtInit){window.__dtInit=1;"
+        "window.__dtSearch=function(q){var box=document.getElementById('dt-search-result');if(!box)return;"
+        "box.innerHTML='<div style=\"opacity:.6;font-size:12px;padding:6px 0\">搜索中，约需几秒…</div>';"
+        "window.MoviePilotAPI.post('plugin/DramaTracker/search',{name:q}).then(function(r){var d=r.data||r;"
+        "if(!d.success){box.innerHTML='<div style=\"color:#ff6b6b;font-size:12px\">'+(d.message||'搜索失败')+'</div>';return;}"
+        "if(!d.items||!d.items.length){box.innerHTML='<div style=\"opacity:.6;font-size:12px\">没有找到候选"
+        "'+(d.errors&&d.errors.length?'；'+d.errors.join('；'):'')+'</div>';return;}"
+        "box.innerHTML=d.items.map(function(it){"
+        "var args=[it.title||'',it.platform||'',it.cover||''].map(function(s){return JSON.stringify(s)}).join(',');"
+        "return '<div style=\"display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed rgba(128,128,128,.3)\">'"
+        "+'<img src=\"'+(it.cover||'')+'\" style=\"width:32px;height:44px;object-fit:cover;border-radius:4px;background:rgba(128,128,128,.2)\" onerror=\"this.style.display=\\'none\\'\">'"
+        "+'<div style=\"flex:1;min-width:0\"><div style=\"font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">'+(it.title||'')+'</div>'"
+        "+'<div style=\"font-size:11px;opacity:.65\">'+(it.platform||'')+((it.current!=null&&it.current!=='')?' · '+it.current+'集':'')+'</div></div>'"
+        "+'<button onclick=\"window.__dtSub('+args+')\" style=\"flex:none;border:none;border-radius:6px;padding:4px 12px;background:#6366f1;color:#fff;font-size:12px;cursor:pointer\">订阅</button></div>';"
+        "}).join('');"
+        "}).catch(function(err){box.innerHTML='<div style=\"color:#ff6b6b;font-size:12px\">请求失败：'+((err&&err.message)||err)+'</div>';});};"
+        "window.__dtSub=function(name,platform,cover){"
+        "window.MoviePilotAPI.post('plugin/DramaTracker/subscribe',{name:name,platform:platform,cover:cover})"
+        ".then(function(r){var d=r.data||r;window.$message&&(window.$message.success(d.message||'已订阅'),0);alert(d.message||'完成');});};"
+        "}"
+        "var card=(e&&e.target&&e.target.closest)?e.target.closest('.v-card'):null;"
+        "var inp=card?card.querySelector('input'):null;var q=inp?inp.value.trim():'';"
+        "var box=document.getElementById('dt-search-result');"
+        "if(!q){if(box)box.innerHTML='<div style=\"opacity:.6;font-size:12px\">请输入剧名</div>';return;}"
+        "window.__dtSearch(q);"
+        "}"
+    )
+
     def get_dashboard_meta(self) -> Optional[List[dict]]:
         if not self.get_state():
             return None
@@ -900,6 +932,7 @@ class DramaTracker(_PluginBase):
                 today_hits += 1
         return [
             {"key": f"{PLUGIN_ID}.Today", "count": today_hits},
+            {"key": f"{PLUGIN_ID}.Search", "count": 0},
             {"key": f"{PLUGIN_ID}.Upcoming", "count": 0},
         ]
 
@@ -909,7 +942,8 @@ class DramaTracker(_PluginBase):
         today_rows, upcoming_rows = self._dashboard_data()
         return {
             "dashboard": {
-                "left": [{"id": f"{PLUGIN_ID}.Today", "name": "今日更新"}],
+                "left": [{"id": f"{PLUGIN_ID}.Today", "name": "今日更新"},
+                         {"id": f"{PLUGIN_ID}.Search", "name": "搜索订阅"}],
                 "right": [{"id": f"{PLUGIN_ID}.Upcoming", "name": "待映倒计时"}],
             },
             "global": {},
@@ -928,6 +962,30 @@ class DramaTracker(_PluginBase):
                         ] or [{"component": "VListItem", "props": {"title": "今日暂无更新", "subtitle": "安心休息～"}}],
                     }],
                 },
+                {
+                    "component": "VCard",
+                    "props": {"variant": "tonal", "title": "🔍 搜索订阅",
+                              "subtitle": "五平台聚合：爱奇艺 / 腾讯 / 优酷 / B站 / 芒果"},
+                    "content": [
+                        {"component": "VRow", "props": {"no-gutters": True, "align": "center",
+                                                        "class": "pt-3 gap-2"}, "content": [
+                            {"component": "VCol", "props": {"cols": "8"}, "content": [{
+                                "component": "VTextField",
+                                "props": {"label": "输入剧名搜索候选", "density": "compact",
+                                          "hide-details": True, "clearable": True},
+                            }]},
+                            {"component": "VCol", "props": {"cols": "4"}, "content": [{
+                                "component": "VBtn",
+                                "props": {"color": "primary", "variant": "flat", "block": True,
+                                          "text": "搜 索", "onclick": self._SEARCH_JS},
+                            }]},
+                        ]},
+                        {"component": "VDivider", "props": {"class": "mt-3"}},
+                        {"component": "VCardText",
+                         "props": {"id": "dt-search-result",
+                                   "innerHTML": "输入剧名后点「搜索」，候选来自五个平台，点订阅即开启追更。"},
+                        },
+                    ]},
                 {
                     "component": "VCard",
                     "props": {"variant": "tonal", "title": "🎬 待映倒计时",

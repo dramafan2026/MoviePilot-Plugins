@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>追剧助手 DramaTracker · MoviePilot 插件效果图</title>
+<style>
+  :root{
+    --primary:#1867c0;
+    --primary-dim:#e3f0fd;
+    --bg:#f4f5f8;
+    --surface:#ffffff;
+    --tonal:#eef4fb;
+    --fg:#1d1f27;
+    --fg-dim:#5a6070;
+    --line:#e3e6ec;
+    --ok:#2e9b5b;
+    --warn:#d9921a;
+    --danger:#d64545;
+    --chip:#eef1f6;
+    --radius:14px;
+    font-size:15px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;}
+  .wrap{max-width:1020px;margin:0 auto;padding:26px 18px 70px}
+  .shell{background:var(--surface);border-radius:var(--radius);border:1px solid var(--line);
+    box-shadow:0 6px 26px rgba(20,30,60,.07);overflow:hidden}
+
+  /* 顶栏 */
+  .topbar{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+  .logo{width:44px;height:44px;border-radius:11px;flex:0 0 auto;
+    background:linear-gradient(135deg,#1867c0,#22b8cf);display:grid;place-items:center;
+    color:#fff;font-size:22px;box-shadow:0 4px 12px rgba(24,103,192,.28)}
+  .ttl{flex:1 1 auto;min-width:0}
+  .ttl h1{margin:0;font-size:19px;letter-spacing:.3px}
+  .ttl .desc{margin:3px 0 0;font-size:12.5px;color:var(--fg-dim);line-height:1.5}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+  .chip{font-size:11px;padding:3px 9px;border-radius:999px;background:var(--chip);color:var(--fg-dim);white-space:nowrap}
+  .chip.on{background:#e4f6ec;color:var(--ok);font-weight:600}
+  .chip.v{background:var(--primary-dim);color:var(--primary);font-weight:600}
+
+  .body{padding:18px 20px}
+
+  /* 统计条 */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .stat{background:var(--tonal);border-radius:12px;text-align:center;padding:14px 6px}
+  .stat b{display:block;font-size:26px;font-weight:800;color:var(--primary);line-height:1.15}
+  .stat span{font-size:12px;color:var(--fg-dim)}
+
+  /* 立即检查按钮 */
+  .actions{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px}
+  .btn{border:0;border-radius:9px;padding:11px 10px;font-size:13.5px;font-weight:600;cursor:pointer;
+    font-family:inherit;transition:.15s}
+  .btn.primary{background:var(--primary);color:#fff;box-shadow:0 3px 10px rgba(24,103,192,.3)}
+  .btn.primary:hover{background:#1257a5}
+  .btn.ghost{background:var(--primary-dim);color:var(--primary)}
+
+  /* 搜索订阅卡 */
+  .card{background:var(--tonal);border-radius:12px;margin-top:14px;overflow:hidden}
+  .card.flat{background:#fff;border:1px solid var(--line)}
+  .card-hd{padding:13px 16px 0}
+  .card-hd .t{font-size:14.5px;font-weight:700}
+  .card-hd .s{font-size:12px;color:var(--fg-dim);margin-top:2px}
+  .searchrow{display:flex;gap:10px;padding:12px 16px}
+  .field{flex:1 1 auto;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);
+    border-radius:8px;padding:0 12px;height:42px}
+  .field input{border:0;outline:0;flex:1;font-size:13.5px;font-family:inherit;background:transparent;color:var(--fg)}
+  .field input::placeholder{color:#9aa2b1}
+  .searchrow .btn{flex:0 0 112px}
+  .divider{height:1px;background:var(--line);margin:0 16px}
+  .hint{padding:11px 16px 14px;font-size:12.5px;color:var(--fg-dim);line-height:1.6}
+
+  /* 标签页 */
+  .tabs{display:flex;gap:4px;margin-top:18px;border-bottom:1px solid var(--line);overflow-x:auto}
+  .tab{flex:0 0 auto;padding:10px 14px;font-size:13.5px;color:var(--fg-dim);cursor:pointer;
+    border-bottom:2.5px solid transparent;white-space:nowrap;font-weight:600;background:none;border-top:0;border-left:0;border-right:0;font-family:inherit}
+  .tab:hover{color:var(--primary)}
+  .tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+  .panes{margin-top:14px}
+  .pane{display:none;animation:fade .22s ease}
+  .pane.show{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  /* 表格 */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{text-align:left;font-weight:600;color:var(--fg-dim);font-size:12px;padding:9px 12px;
+    border-bottom:1px solid var(--line);white-space:nowrap}
+  tbody td{padding:10px 12px;border-bottom:1px solid #f0f2f6;color:var(--fg)}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:#fafbfd}
+  td.name{font-weight:600}
+  .pl{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:var(--chip);color:var(--fg-dim);white-space:nowrap}
+  .pl.iqiyi{background:#eaf5ef;color:#1a9c5b}
+  .pl.qq{background:#e9f3ff;color:#1668d6}
+  .pl.youku{background:#fdeef0;color:#d0335a}
+  .pl.bili{background:#e8f6fb;color:#0f9bbd}
+  .pl.mango{background:#fff1e6;color:#e8791a}
+  .prog{font-weight:600;color:var(--primary)}
+  .prog.done{color:var(--ok)}
+  .next{font-size:12px;color:var(--fg-dim)}
+  .next.today{color:var(--danger);font-weight:700}
+  .sched{font-size:12px;color:var(--fg-dim);max-width:210px;display:inline-block;line-height:1.45}
+
+  /* 本周速览 */
+  .wd{display:inline-block;min-width:56px;font-weight:600;font-size:12.5px;
+    padding:3px 9px;border-radius:7px;background:var(--primary-dim);color:var(--primary);text-align:center}
+  .wd.rest{background:var(--chip);color:var(--fg-dim)}
+  .wd.daily{background:#fff3e0;color:#e8791a}
+
+  /* 新剧发现海报墙 */
+  .wall{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;padding:14px}
+  .poster{background:#fff;border:1px solid var(--line);border-radius:11px;overflow:hidden;
+    box-shadow:0 2px 8px rgba(20,30,60,.05);transition:.18s;display:flex;flex-direction:column}
+  .poster:hover{transform:translateY(-3px);box-shadow:0 8px 18px rgba(20,30,60,.12)}
+  .poster .img{aspect-ratio:2/3;width:100%;object-fit:cover;background:#e8ebf0;display:block}
+  .poster .meta{padding:8px 9px 4px;font-size:12px;line-height:1.35}
+  .poster .meta .nm{font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .poster .meta .ep{color:var(--fg-dim);font-size:11px}
+  .poster .rate{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.62);color:#ffd166;
+    font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px}
+  .poster .imgwrap{position:relative}
+  .poster .add{margin:0 8px 9px;border:0;background:var(--primary-dim);color:var(--primary);
+    border-radius:7px;padding:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+  .poster .add:hover{background:var(--primary);color:#fff}
+
+  /* 待映倒计时 */
+  .cnt{font-weight:700;color:var(--warn)}
+  .cnt.soon{color:var(--danger)}
+
+  .alert{background:var(--primary-dim);color:var(--primary);border-radius:11px;padding:14px 16px;font-size:13px}
+
+  .foot{margin-top:16px;font-size:11.5px;color:#9aa2b1;text-align:center;line-height:1.7}
+  .notes{margin-top:30px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px}
+  .notes h2{margin:0 0 4px;font-size:16px}
+  .notes .sub{font-size:12.5px;color:var(--fg-dim);margin-bottom:16px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .box{background:#fafbfd;border:1px solid var(--line);border-radius:11px;padding:14px 16px}
+  .box h3{margin:0 0 8px;font-size:13.5px;color:var(--primary)}
+  .box ul{margin:0;padding-left:17px;font-size:12.5px;line-height:1.85;color:var(--fg-dim)}
+  .box li b{color:var(--fg)}
+  .kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;
+    background:var(--chip);border-radius:5px;padding:1px 6px;color:var(--fg)}
+  @media (max-width:760px){
+    .stats,.actions{grid-template-columns:repeat(2,1fr)}
+    .wall{grid-template-columns:repeat(3,1fr)}
+    .grid2{grid-template-columns:1fr}
+    .sched{max-width:none}
+    .desktop-only{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="shell">
+    <!-- 顶栏 -->
+    <div class="topbar">
+      <div class="logo">📺</div>
+      <div class="ttl">
+        <h1>追剧助手 <span style="font-size:12px;color:var(--fg-dim);font-weight:400">DramaTracker</span></h1>
+        <div class="desc">五平台追剧订阅，新集 / 完结 / 断更推送，官方排播时刻与追剧日历，豆瓣新剧发现、待映倒计时，微信即可追更。</div>
+      </div>
+      <div class="chips">
+        <span class="chip on">● 已启用</span>
+        <span class="chip v">v1.2.0</span>
+        <span class="chip desktop-only">dramafan2026</span>
+      </div>
+    </div>
+
+    <div class="body">
+      <!-- 统计条 -->
+      <div class="stats">
+        <div class="stat"><b>6</b><span>在追作品</span></div>
+        <div class="stat"><b>2</b><span>今日更新</span></div>
+        <div class="stat"><b>6</b><span>本周有档</span></div>
+        <div class="stat"><b>8</b><span>待映影片</span></div>
+      </div>
+
+      <!-- 立即检查 -->
+      <div class="actions">
+        <button class="btn primary" onclick="flash(this)">⚡ 立即检查</button>
+      </div>
+
+      <!-- 搜索订阅 -->
+      <div class="card">
+        <div class="card-hd">
+          <div class="t">🔍 搜索订阅</div>
+          <div class="s">五平台聚合：爱奇艺 / 腾讯 / 优酷 / B站 / 芒果</div>
+        </div>
+        <div class="searchrow">
+          <label class="field">
+            <span style="color:#9aa2b1">🔎</span>
+            <input type="text" placeholder="输入剧名搜索候选" id="q" value="庆余年">
+          </label>
+          <button class="btn primary" onclick="doSearch()">搜 索</button>
+        </div>
+        <div class="divider"></div>
+        <!-- 搜索结果区（点搜索后渲染） -->
+        <div id="result" class="hint">输入剧名后点「搜索」，点候选右侧「订阅」即开启追更。</div>
+      </div>
+
+      <!-- 五标签页 -->
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-i="0">追剧清单</button>
+        <button class="tab" data-i="1">本周速览</button>
+        <button class="tab" data-i="2">影视日历</button>
+        <button class="tab" data-i="3">新剧发现</button>
+        <button class="tab" data-i="4">待映倒计时</button>
+      </div>
+
+      <div class="panes">
+        <!-- 1 追剧清单 -->
+        <div class="pane show">
+          <table>
+            <thead><tr><th>剧名</th><th>平台</th><th>进度</th><th>排播</th><th>下次更新</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="name">庆余年 第三季</td><td><span class="pl qq">腾讯视频</span></td>
+                <td><span class="prog">18 / 36</span></td>
+                <td><span class="sched">VIP会员每日19:30更新3集，非会员每日21:30转免1集</span></td>
+                <td><span class="next today">今天 19:30</span></td>
+              </tr>
+              <tr>
+                <td class="name">凡人修仙传</td><td><span class="pl bili">B站</span></td>
+                <td><span class="prog">131 集</span></td>
+                <td><span class="sched">每周六 10:00 更新</span></td>
+                <td><span class="next">周六</span></td>
+              </tr>
+              <tr>
+                <td class="name">墨雨云间</td><td><span class="pl youku">优酷</span></td>
+                <td><span class="prog">24 / 40</span></td>
+                <td><span class="sched">每周三、四、五 20:00 更新</span></td>
+                <td><span class="next">周四</span></td>
+              </tr>
+              <tr>
+                <td class="name">水龙吟</td><td><span class="pl mango">芒果TV</span></td>
+                <td><span class="prog">32 / 40</span></td>
+                <td><span class="sched">更新至 32 集 · 观察中</span></td>
+                <td><span class="next">观察中</span></td>
+              </tr>
+              <tr>
+                <td class="name">小巷人家</td><td><span class="pl iqiyi">爱奇艺</span></td>
+                <td><span class="prog done">40 集 · 已完结</span></td>
+                <td><span class="sched">VIP会员每日18:00更新</span></td>
+                <td><span class="next">—</span></td>
+              </tr>
+              <tr>
+                <td class="name">雪中悍刀行 第二季</td><td><span class="pl qq">腾讯视频</span></td>
+                <td><span class="prog">8 / 30</span></td>
+                <td><span class="sched">VIP会员每日20:00更新2集</span></td>
+                <td><span class="next today">今天 20:00</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 2 本周速览 -->
+        <div class="pane">
+          <div class="card flat" style="margin:0">
+            <div class="card-hd"><div class="s" style="padding-bottom:10px">按官方排播优先、历史规律兜底归档</div></div>
+            <table>
+              <thead><tr><th style="width:96px">星期</th><th>剧目</th></tr></thead>
+              <tbody>
+                <tr><td><span class="wd daily">每日档</span></td><td>庆余年 第三季、雪中悍刀行 第二季</td></tr>
+                <tr><td><span class="wd">周一</span></td><td>—</td></tr>
+                <tr><td><span class="wd">周二</span></td><td>—</td></tr>
+                <tr><td><span class="wd">周三</span></td><td>墨雨云间</td></tr>
+                <tr><td><span class="wd">周四</span></td><td>墨雨云间</td></tr>
+                <tr><td><span class="wd">周五</span></td><td>墨雨云间</td></tr>
+                <tr><td><span class="wd">周六</span></td><td>凡人修仙传</td></tr>
+                <tr><td><span class="wd rest">周日</span></td><td>—</td></tr>
+                <tr><td><span class="wd rest">待观察</span></td><td>水龙吟</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 3 影视日历 -->
+        <div class="pane">
+          <table>
+            <thead><tr><th>剧名</th><th>平台</th><th>排播</th><th>下次更新</th><th>进度</th></tr></thead>
+            <tbody>
+              <tr><td class="name">庆余年 第三季</td><td><span class="pl qq">腾讯视频</span></td><td><span class="sched">每日 19:30</span></td><td><span class="next today">今天 19:30</span></td><td><span class="prog">18 / 36</span></td></tr>
+              <tr><td class="name">雪中悍刀行 第二季</td><td><span class="pl qq">腾讯视频</span></td><td><span class="sched">每日 20:00</span></td><td><span class="next today">今天 20:00</span></td><td><span class="prog">8 / 30</span></td></tr>
+              <tr><td class="name">墨雨云间</td><td><span class="pl youku">优酷</span></td><td><span class="sched">周三/四/五 20:00</span></td><td><span class="next">周四</span></td><td><span class="prog">24 / 40</span></td></tr>
+              <tr><td class="name">凡人修仙传</td><td><span class="pl bili">B站</span></td><td><span class="sched">每周六 10:00</span></td><td><span class="next">周六</span></td><td><span class="prog">131 集</span></td></tr>
+              <tr><td class="name">水龙吟</td><td><span class="pl mango">芒果TV</span></td><td><span class="sched">观察中</span></td><td><span class="next">观察中</span></td><td><span class="prog">32 / 40</span></td></tr>
+              <tr><td class="name">小巷人家</td><td><span class="pl iqiyi">爱奇艺</span></td><td><span class="sched">已完结</span></td><td><span class="next">—</span></td><td><span class="prog done">40 集</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 4 新剧发现 -->
+        <div class="pane">
+          <div class="card flat" style="margin:0">
+            <div class="card-hd"><div class="s" style="padding-bottom:4px">近 7 天豆瓣热播新剧，点「追」直接订阅</div></div>
+            <div class="wall">
+              <div class="poster">
+                <div class="imgwrap"><span class="rate">8.9</span>
+                  <img class="img" src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=ancient%20chinese%20palace%20intrigue%20drama%20poster%2C%20cinematic%20lighting%2C%20elegant%20costume&image_size=portrait_4_3" alt=""></div>
+                <div class="meta"><span class="nm">凤栖梧桐</span><span class="ep">共 36 集</span></div>
+                <button class="add">＋ 追</button>
+              </div>
+              <div class="poster">
+                <div class="imgwrap"><span class="rate">8.4</span>
+                  <img class="img" src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=xianxia%20cultivation%20fantasy%20drama%20poster%2C%20sword%20in%20clouds%2C%20epic&image_size=portrait_4_3" alt=""></div>
+                <div class="meta"><span class="nm">青云问道</span><span class="ep">共 40 集</span></div>
+                <button class="add">＋ 追</button>
+              </div>
+              <div class="poster">
+                <div class="imgwrap"><span class="rate">7.9</span>
+                  <img class="img" src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=modern%20urban%20romance%20drama%20poster%2C%20city%20night%20lights%2C%20soft%20tone&image_size=portrait_4_3" alt=""></div>
+                <div class="meta"><span class="nm">余生有你</span><span class="ep">共 30 集</span></div>
+                <button class="add">＋ 追</button>
+              </div>
+              <div class="poster">
+                <div class="imgwrap"><span class="rate">8.1</span>
+                  <img class="img" src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=crime%20thriller%20detective%20drama%20poster%2C%20noir%2C%20dark%20rainy%20city&image_size=portrait_4_3" alt=""></div>
+                <div class="meta"><span class="nm">暗夜追凶</span><span class="ep">共 24 集</span></div>
+                <button class="add">＋ 追</button>
+              </div>
+              <div class="poster">
+                <div class="imgwrap"><span class="rate">7.6</span>
+                  <img class="img" src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=historical%20family%20saga%20drama%20poster%2C%20warm%20golden%20tone&image_size=portrait_4_3" alt=""></div>
+                <div class="meta"><span class="nm">岁岁年年</span><span class="ep">共 32 集</span></div>
+                <button class="add">＋ 追</button>
+              </div>
+              <div class="poster">
+                <div class="imgwrap"><span class="rate">暂无评分</span>
+                  <img class="img" src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=sci-fi%20space%20adventure%20drama%20poster%2C%20blue%20neon%2C%20futuristic&image_size=portrait_4_3" alt=""></div>
+                <div class="meta"><span class="nm">星轨之上</span><span class="ep">共 28 集</span></div>
+                <button class="add">＋ 追</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5 待映倒计时 -->
+        <div class="pane">
+          <div class="card flat" style="margin:0">
+            <div class="card-hd"><div class="s" style="padding-bottom:8px">豆瓣即将上映，上映当日提醒</div></div>
+            <table>
+              <thead><tr><th>片名</th><th>上映</th><th>倒计时</th></tr></thead>
+              <tbody>
+                <tr><td class="name">风起长林</td><td>10月24日</td><td><span class="cnt soon">还有 4 天</span></td></tr>
+                <tr><td class="name">孤舟渡海</td><td>10月26日</td><td><span class="cnt soon">还有 6 天</span></td></tr>
+                <tr><td class="name">江湖再见</td><td>10月31日</td><td><span class="cnt">还有 11 天</span></td></tr>
+                <tr><td class="name">落日余晖</td><td>11月02日</td><td><span class="cnt">还有 13 天</span></td></tr>
+                <tr><td class="name">长安三万里 下</td><td>11月08日</td><td><span class="cnt">还有 19 天</span></td></tr>
+                <tr><td class="name">深海回声</td><td>11月15日</td><td><span class="cnt">还有 26 天</span></td></tr>
+                <tr><td class="name">无声告白</td><td>11月22日</td><td><span class="cnt">还有 33 天</span></td></tr>
+                <tr><td class="name">群山之巅</td><td>12月01日</td><td><span class="cnt">还有 42 天</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="foot">以上为插件详情页实际结构还原 · 数据为示例值 · 实际以你订阅的剧集为准</div>
+    </div>
+  </div>
+
+  <!-- 说明 -->
+  <div class="notes">
+    <h2>这张图对应插件的哪些功能</h2>
+    <div class="sub">界面完全按 get_page 实际返回的 Vuetify 结构还原（统计条 → 一键检查 → 搜索订阅 → 五标签页）</div>
+    <div class="grid2">
+      <div class="box">
+        <h3>顶部四张统计卡</h3>
+        <ul>
+          <li><b>在追作品</b> 订阅总数</li>
+          <li><b>今日更新</b> 今天有档期的剧</li>
+          <li><b>本周有档</b> 本周有排播的条目数</li>
+          <li><b>待映影片</b> 豆瓣「即将上映」条数</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3>⚡ 立即检查 + 🔍 搜索订阅</h3>
+        <ul>
+          <li>一键手动跑一次全量检查并推送，不用等定时任务</li>
+          <li>搜索框聚合五平台，结果内直接「订阅」，不离开详情页</li>
+          <li>平台风控/超时原因会透传到结果区，不静默吞错</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3>五个标签页</h3>
+        <ul>
+          <li><b>追剧清单</b> 剧名 / 平台 / 进度 / 排播 / 下次更新</li>
+          <li><b>本周速览</b> 每日档 + 周一~周日 + 待观察</li>
+          <li><b>影视日历</b> 排播 + 下次更新 + 进度</li>
+          <li><b>新剧发现</b> 豆瓣热播海报墙，一键「＋追」</li>
+          <li><b>待映倒计时</b> 片名 / 上映 / 还有 N 天</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3>界面外的能力</h3>
+        <ul>
+          <li>推送走 MoviePilot 通知中心，插件零推送配置</li>
+          <li>静默时段暂存、晨间合并补发</li>
+          <li>ICS 端点 <span class="kbd">/api/v1/plugin/DramaTracker/ics</span> 订阅到手机日历</li>
+          <li>远程命令 <span class="kbd">/dt_check</span> <span class="kbd">/dt_today</span> <span class="kbd">/dt_search 剧名</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 标签切换
+  const tabs = document.querySelectorAll('#tabs .tab');
+  const panes = document.querySelectorAll('.panes .pane');
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(x => x.classList.remove('active'));
+    panes.forEach(p => p.classList.remove('show'));
+    t.classList.add('active');
+    panes[+t.dataset.i].classList.add('show');
+  }));
+
+  // 搜索模拟
+  function doSearch(){
+    const q = document.getElementById('q').value.trim() || '剧名';
+    document.getElementById('result').innerHTML =
+      '为你找到 <b>3</b> 个候选（已自动过滤花絮/解说/单集切片）：' +
+      '<div style="margin-top:8px;display:flex;flex-direction:column;gap:7px">' +
+        row('庆余年 第三季','腾讯视频','qq','共 36 集 · 更新至 18') +
+        row('庆余年 第二季','爱奇艺','iqiyi','共 36 集 · 已完结') +
+        row('庆余年 特别篇','优酷','youku','共 6 集 · 花絮类已过滤') +
+      '</div>';
+  }
+  function row(name, pl, cls, info){
+    return '<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);' +
+      'border-radius:8px;padding:8px 11px">' +
+      '<span style="font-weight:600;font-size:13px">'+name+'</span>' +
+      '<span class="pl '+cls+'">'+pl+'</span>' +
+      '<span style="font-size:12px;color:var(--fg-dim);flex:1">'+info+'</span>' +
+      '<button class="btn ghost" style="padding:6px 14px;font-size:12px">订阅</button></div>';
+  }
+  function flash(b){
+    const t = b.textContent;
+    b.textContent = '检查中…';
+    setTimeout(()=>{ b.textContent = '✓ 已检查 · 2 部有更新'; setTimeout(()=>b.textContent=t, 1400); }, 700);
+  }
+</script>
+</body>
+</html>

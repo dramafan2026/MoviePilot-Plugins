@@ -2,7 +2,7 @@
 
 > MoviePilot V3 追剧插件 —— 五平台追剧订阅、更新推送、排播日历、豆瓣新剧发现，微信里即可追更。
 
-![MoviePilot V3](https://img.shields.io/badge/MoviePilot-V3-3ddc97) ![Version](https://img.shields.io/badge/version-1.0.0-22d3ee) ![Platform](https://img.shields.io/badge/平台-爱奇艺%20·%20腾讯%20·%20优酷%20·%20B站%20·%20芒果-ff9f43) ![License](https://img.shields.io/badge/license-MIT-8b91a5)
+![MoviePilot V3](https://img.shields.io/badge/MoviePilot-V3-3ddc97) ![Version](https://img.shields.io/badge/version-1.2.0-22d3ee) ![Platform](https://img.shields.io/badge/平台-爱奇艺%20·%20腾讯%20·%20优酷%20·%20B站%20·%20芒果-ff9f43) ![License](https://img.shields.io/badge/license-MIT-8b91a5)
 
 ## 安装
 
@@ -13,6 +13,13 @@ https://github.com/dramafan2026/MoviePilot-Plugins
 ```
 
 刷新市场后安装 **「追剧助手」**，启用即用——推送走 MoviePilot 通知中心（沿用你已配置的消息通道），插件本身**零推送配置、零第三方依赖**。
+
+## Android App
+
+追剧助手另有独立 Android 客户端，无需 MoviePilot 即可单独使用，与插件同源核心逻辑：
+
+- 📥 [下载 v0.4.0 release（arm64 · 9 MB）](https://github.com/dramafan2026/MoviePilot-Plugins/releases/download/DramaTracker-App_v0.4.0/drama-tracker-android-arm64-v0.4.0-release.apk)
+- 五平台追剧，包名 `com.drama.tracker`，release 签名可直接安装
 
 ## 功能一览
 
@@ -42,7 +49,7 @@ https://github.com/dramafan2026/MoviePilot-Plugins
 
 | 插件 | 版本 | 说明 |
 |---|---|---|
-| DramaTracker | v1.0.0 | 首次发布：五平台搜索订阅、每日检查推送、排播日历、静默时段、豆瓣新剧发现与自动追剧、待映倒计时、周报、ICS、远程命令与智能体工具 |
+| DramaTracker | v1.2.0 | 详情页改版（统计条 + 一键检查 + 五标签页）；五平台搜索订阅、每日检查推送、排播日历、静默时段、豆瓣新剧发现与自动追剧、待映倒计时、周报、ICS、远程命令与智能体工具 |
 
 版本历史见 [package.v3.json](package.v3.json)。
 

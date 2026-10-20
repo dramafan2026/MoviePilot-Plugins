@@ -4,6 +4,13 @@
 
 ![MoviePilot V3](https://img.shields.io/badge/MoviePilot-V3-3ddc97) ![Version](https://img.shields.io/badge/version-1.2.1-22d3ee) ![Platform](https://img.shields.io/badge/平台-爱奇艺%20·%20腾讯%20·%20优酷%20·%20B站%20·%20芒果-ff9f43) ![License](https://img.shields.io/badge/license-MIT-8b91a5)
 
+## 界面预览
+
+详情页效果图（统计条 / 一键检查 / 搜索订阅候选 / 五标签页，v1.2.1）：
+
+- [在线预览（自动渲染）](https://htmlpreview.github.io/?https://github.com/dramafan2026/MoviePilot-Plugins/blob/main/preview/dramatracker-plugin-preview.html)
+- [效果图文源](preview/dramatracker-plugin-preview.html)
+
 ## 安装
 
 在 MoviePilot 后台 **设置 → 插件 → 市场管理** 中添加第三方市场：

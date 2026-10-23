@@ -61,7 +61,7 @@ class DramaTracker(_PluginBase):
     plugin_name = "追剧助手"
     plugin_desc = "五平台追剧订阅，新集/完结/断更推送，官方排播时刻与追剧日历，豆瓣新剧发现、待映倒计时，微信即可追更。"
     plugin_icon = "DramaTracker.png"
-    plugin_version = "1.2.1"
+    plugin_version = "1.2.2"
     plugin_author = "dramafan2026"
     author_url = "https://github.com/dramafan2026/MoviePilot-Plugins"
     plugin_config_prefix = "dramatracker_"
@@ -440,25 +440,29 @@ class DramaTracker(_PluginBase):
             soon_page = [{"component": "VAlert", "props": {"type": "info", "variant": "tonal",
                           "text": "暂无即将上映影片数据。"}}]
 
-        tabs = [
-            ("list", "追剧清单", list_page),
-            ("week", "本周速览", week_page),
-            ("cal", "影视日历", cal_page),
-            ("fresh", "新剧发现", fresh_page),
-            ("soon", "待映倒计时", soon_page),
+        # ---- 五个板块（手风琴：PageRender 无 model 机制，VTabs+VWindow
+        # 无法联动切换内容区，改用 VExpansionPanels 点击展开，100% 可用）----
+        sections = [
+            ("📺 追剧清单", list_page),
+            ("🗓 本周速览", week_page),
+            ("📅 影视日历", cal_page),
+            ("🆕 新剧发现", fresh_page),
+            ("🎬 待映倒计时", soon_page),
         ]
         elements.append({
-            "component": "VTabs",
-            "props": {"model": "_dtTab", "fixed-tabs": True, "density": "compact",
-                      "class": "mt-2"},
-            "content": [{"component": "VTab", "props": {"value": v}, "text": t}
-                        for v, t, _ in tabs],
-        })
-        elements.append({
-            "component": "VWindow",
-            "props": {"model": "_dtTab"},
-            "content": [{"component": "VWindowItem", "props": {"value": v}, "content": c}
-                        for v, _t, c in tabs],
+            "component": "VExpansionPanels",
+            "props": {"variant": "accordion", "class": "mt-2"},
+            "content": [
+                {
+                    "component": "VExpansionPanel",
+                    "content": [
+                        {"component": "VExpansionPanelTitle", "text": t,
+                         "props": {"class": "font-weight-bold"}},
+                        {"component": "VExpansionPanelText", "content": c},
+                    ],
+                }
+                for t, c in sections
+            ],
         })
         return elements
 

@@ -2,7 +2,7 @@
 
 > MoviePilot V3 追剧插件 —— 五平台追剧订阅、更新推送、排播日历、豆瓣新剧发现，微信里即可追更。
 
-![MoviePilot V3](https://img.shields.io/badge/MoviePilot-V3-3ddc97) ![Version](https://img.shields.io/badge/version-1.2.2-22d3ee) ![Platform](https://img.shields.io/badge/平台-爱奇艺%20·%20腾讯%20·%20优酷%20·%20B站%20·%20芒果-ff9f43) ![License](https://img.shields.io/badge/license-MIT-8b91a5)
+![MoviePilot V3](https://img.shields.io/badge/MoviePilot-V3-3ddc97) ![Version](https://img.shields.io/badge/version-1.2.3-22d3ee) ![Platform](https://img.shields.io/badge/平台-爱奇艺%20·%20腾讯%20·%20优酷%20·%20B站%20·%20芒果-ff9f43) ![License](https://img.shields.io/badge/license-MIT-8b91a5)
 
 ## 界面预览
 
@@ -56,7 +56,7 @@ https://github.com/dramafan2026/MoviePilot-Plugins
 
 | 插件 | 版本 | 说明 |
 |---|---|---|
-| DramaTracker | v1.2.2 | 修复五板块切换不生效（宿主渲染器无 model 机制，改为手风琴面板）；修复详情页文字/按钮不显示；搜索订阅改为配置页填「搜索剧名」后一键订阅；详情页改版（统计条 + 一键检查 + 五板块）；五平台搜索订阅、每日检查推送、排播日历、静默时段、豆瓣新剧发现与自动追剧、待映倒计时、周报、ICS、远程命令与智能体工具 |
+| DramaTracker | v1.2.3 | 修复点「＋追」/「立即检查」报「服务器返回了无效响应」（耗时操作改为后台执行+消息通知）；修复五板块切换不生效（宿主渲染器无 model 机制，改为手风琴面板） |
 
 
 版本历史见 [package.v3.json](package.v3.json)。

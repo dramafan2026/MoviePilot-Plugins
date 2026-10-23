@@ -61,7 +61,7 @@ class DramaTracker(_PluginBase):
     plugin_name = "追剧助手"
     plugin_desc = "五平台追剧订阅，新集/完结/断更推送，官方排播时刻与追剧日历，豆瓣新剧发现、待映倒计时，微信即可追更。"
     plugin_icon = "DramaTracker.png"
-    plugin_version = "1.2.2"
+    plugin_version = "1.2.3"
     plugin_author = "dramafan2026"
     author_url = "https://github.com/dramafan2026/MoviePilot-Plugins"
     plugin_config_prefix = "dramatracker_"
@@ -611,15 +611,41 @@ class DramaTracker(_PluginBase):
         return {"success": True, "message": f"已订阅《{name.strip()}》", "key": key}
 
     def api_autosub(self, name: str = "") -> dict:
-        """按剧名五平台聚合搜索并订阅最佳候选（平台自动识别）。"""
-        if not name.strip():
+        """按剧名五平台聚合搜索并订阅最佳候选（平台自动识别）。
+
+        五平台搜索 + 建立基线可达数十秒，同步执行会令前端请求超时
+        （表现为「服务器返回了无效响应」），故改为后台线程执行并立即返回，
+        结果经消息通知。
+        """
+        name = str(name or "").strip()
+        if not name:
             return {"success": False, "message": "缺少剧名"}
-        items, errors = client_search_all(None, name.strip())
-        if not items:
-            return {"success": False,
-                    "message": f"没有搜到《{name.strip()}》的正剧" + ("；" + "；".join(errors) if errors else "")}
-        top = items[0]
-        return self.api_subscribe(top["title"], top.get("platform", ""), top.get("cover", ""))
+        import threading
+        threading.Thread(target=self._autosub_bg, args=(name,), daemon=True).start()
+        return {"success": True,
+                "message": f"正在搜索并订阅《{name}》，完成后将发送消息通知"}
+
+    def _autosub_bg(self, name: str) -> None:
+        """后台：五平台搜索 → 订阅最佳候选 → 消息通知结果。"""
+        try:
+            items, errors = client_search_all(None, name)
+            if not items:
+                msg = f"没有搜到《{name}》的正剧" + ("；" + "；".join(errors) if errors else "")
+                self.post_message(title="追剧助手 · 订阅失败", text=msg)
+                return
+            top = items[0]
+            result = self.api_subscribe(top["title"], top.get("platform", ""),
+                                        top.get("cover", ""))
+            if not result.get("success"):
+                self.post_message(title="追剧助手 · 订阅失败",
+                                  text=result.get("message", "订阅失败"))
+        except Exception as e:
+            logger.warning(f"DramaTracker 自动订阅《{name}》异常: {e}")
+            try:
+                self.post_message(title="追剧助手 · 订阅失败",
+                                  text=f"自动订阅《{name}》失败：{e}")
+            except Exception:
+                pass
 
     def api_unsubscribe(self, key: str = "") -> dict:
         if key in self._subscriptions:
@@ -733,9 +759,25 @@ class DramaTracker(_PluginBase):
         return {"success": True, "items": out, "date_text": f"{date.today().month}月{date.today().day}日"}
 
     def api_check(self) -> dict:
-        """手动触发一次检查（走静默暂存逻辑）。"""
-        report = self.daily_task()
-        return {"success": True, "message": report or "检查完成"}
+        """手动触发一次检查（走静默暂存逻辑）。
+
+        全量检查（订阅更新 + 新剧发现 + 待映 + 周报）耗时较长，
+        同步执行会令前端请求超时，改为后台线程执行并立即返回，
+        检查结果与推送经消息通知。
+        """
+        import threading
+        threading.Thread(target=self._check_bg, daemon=True).start()
+        return {"success": True, "message": "检查已启动，完成后将发送消息通知"}
+
+    def _check_bg(self) -> None:
+        try:
+            self.daily_task()
+        except Exception as e:
+            logger.warning(f"DramaTracker 手动检查异常: {e}")
+            try:
+                self.post_message(title="追剧助手 · 检查失败", text=str(e))
+            except Exception:
+                pass
 
     def api_ics(self) -> FastAPIResponse:
         """未来 30 天追剧日历 ICS（原生响应 text/calendar）。"""

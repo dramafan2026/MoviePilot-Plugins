@@ -62,7 +62,7 @@ class DramaTracker(_PluginBase):
     plugin_name = "追剧助手"
     plugin_desc = "五平台追剧订阅，新集/完结/断更推送，官方排播时刻与追剧日历，豆瓣新剧发现、待映倒计时，微信即可追更。"
     plugin_icon = "DramaTracker.png"
-    plugin_version = "1.2.7"
+    plugin_version = "1.2.8"
     plugin_author = "dramafan2026"
     author_url = "https://github.com/dramafan2026/MoviePilot-Plugins"
     plugin_config_prefix = "dramatracker_"
@@ -558,32 +558,32 @@ class DramaTracker(_PluginBase):
 
     def get_api(self) -> List[dict]:
         return [
-            {"path": "/search", "endpoint": self.api_search, "methods": ["GET", "POST"],
+            {"path": f"/{PLUGIN_ID}/search", "endpoint": self.api_search, "methods": ["GET", "POST"],
              "auth": "bear", "summary": "五平台聚合搜索候选"},
-            {"path": "/subscribe", "endpoint": self.api_subscribe, "methods": ["GET", "POST"],
+            {"path": f"/{PLUGIN_ID}/subscribe", "endpoint": self.api_subscribe, "methods": ["GET", "POST"],
              "auth": "bear", "summary": "订阅剧集"},
-            {"path": "/quick_add", "endpoint": self.api_subscribe, "methods": ["GET"],
+            {"path": f"/{PLUGIN_ID}/quick_add", "endpoint": self.api_subscribe, "methods": ["GET"],
              "auth": "apikey", "summary": "订阅剧集（iOS 快捷指令/外部系统）"},
-            {"path": "/autosub", "endpoint": self.api_autosub, "methods": ["GET", "POST"],
+            {"path": f"/{PLUGIN_ID}/autosub", "endpoint": self.api_autosub, "methods": ["GET", "POST"],
              "auth": "bear", "summary": "按剧名自动搜索并订阅最佳候选"},
-            {"path": "/unsubscribe", "endpoint": self.api_unsubscribe, "methods": ["GET", "POST"],
+            {"path": f"/{PLUGIN_ID}/unsubscribe", "endpoint": self.api_unsubscribe, "methods": ["GET", "POST"],
              "auth": "bear", "summary": "取消订阅"},
-            {"path": "/list", "endpoint": self.api_list, "methods": ["GET"],
+            {"path": f"/{PLUGIN_ID}/list", "endpoint": self.api_list, "methods": ["GET"],
              "auth": "bear", "summary": "追剧清单"},
-            {"path": "/calendar", "endpoint": self.api_calendar, "methods": ["GET"],
+            {"path": f"/{PLUGIN_ID}/calendar", "endpoint": self.api_calendar, "methods": ["GET"],
              "auth": "bear", "summary": "追剧日历"},
-            {"path": "/discover", "endpoint": self.api_discover, "methods": ["GET"],
+            {"path": f"/{PLUGIN_ID}/discover", "endpoint": self.api_discover, "methods": ["GET"],
              "auth": "bear", "summary": "豆瓣新剧发现"},
-            {"path": "/upcoming", "endpoint": self.api_upcoming, "methods": ["GET"],
+            {"path": f"/{PLUGIN_ID}/upcoming", "endpoint": self.api_upcoming, "methods": ["GET"],
              "auth": "bear", "summary": "待映倒计时"},
-            {"path": "/today", "endpoint": self.api_today, "methods": ["GET"],
+            {"path": f"/{PLUGIN_ID}/today", "endpoint": self.api_today, "methods": ["GET"],
              "auth": "bear", "summary": "今日更新视图"},
-            {"path": "/check", "endpoint": self.api_check, "methods": ["GET", "POST"],
+            {"path": f"/{PLUGIN_ID}/check", "endpoint": self.api_check, "methods": ["GET", "POST"],
              "auth": "bear", "summary": "手动触发检查"},
-            {"path": "/ics", "endpoint": self.api_ics, "methods": ["GET"],
+            {"path": f"/{PLUGIN_ID}/ics", "endpoint": self.api_ics, "methods": ["GET"],
              "auth": "apikey", "summary": "追剧日历 ICS 订阅"},
-            {"path": "/cover", "endpoint": self.api_cover, "methods": ["GET"],
-             "auth": "bear", "summary": "豆瓣封面图代理"},
+            {"path": f"/{PLUGIN_ID}/cover", "endpoint": self.api_cover, "methods": ["GET"],
+             "allow_anonymous": True, "summary": "豆瓣封面图代理"},
         ]
 
     def api_search(self, name: str = "", platform: str = "") -> dict:

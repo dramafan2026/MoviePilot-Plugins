@@ -2,7 +2,7 @@
 
 > MoviePilot V3 追剧插件 —— 五平台追剧订阅、更新推送、排播日历、豆瓣新剧发现，微信里即可追更。
 
-![MoviePilot V3](https://img.shields.io/badge/MoviePilot-V3-3ddc97) ![Version](https://img.shields.io/badge/version-1.2.6-22d3ee) ![Platform](https://img.shields.io/badge/平台-爱奇艺%20·%20腾讯%20·%20优酷%20·%20B站%20·%20芒果-ff9f43) ![License](https://img.shields.io/badge/license-MIT-8b91a5)
+![MoviePilot V3](https://img.shields.io/badge/MoviePilot-V3-3ddc97) ![Version](https://img.shields.io/badge/version-1.2.7-22d3ee) ![Platform](https://img.shields.io/badge/平台-爱奇艺%20·%20腾讯%20·%20优酷%20·%20B站%20·%20芒果-ff9f43) ![License](https://img.shields.io/badge/license-MIT-8b91a5)
 
 ## 界面预览
 
@@ -56,7 +56,7 @@ https://github.com/dramafan2026/MoviePilot-Plugins
 
 | 插件 | 版本 | 说明 |
 |---|---|---|
-| DramaTracker | v1.2.6 | 修复插件停止时误将启用开关置为关闭的问题（重载/重启后不再丢失启用状态）；此前已修复按钮报无效响应（严格三键结构+GET 传参）与耗时操作后台化 |
+| DramaTracker | v1.2.7 | 修复每日检查在已有订阅时报错中断的问题（检查搜索误传候选列表而非最佳候选，订阅后收不到更新推送）；此前已修复启用状态跨重启保持、按钮报无效响应等 |
 
 
 版本历史见 [package.v3.json](package.v3.json)。

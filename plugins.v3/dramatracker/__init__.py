@@ -26,6 +26,7 @@ from app.schemas.types import EventType
 from . import checker, core
 from .clients import CLIENT, bilibili, iqiyi, upcoming
 from .clients import search_all as client_search_all
+from .clients import search as client_search_one
 
 PLUGIN_ID = "DramaTracker"
 
@@ -61,7 +62,7 @@ class DramaTracker(_PluginBase):
     plugin_name = "追剧助手"
     plugin_desc = "五平台追剧订阅，新集/完结/断更推送，官方排播时刻与追剧日历，豆瓣新剧发现、待映倒计时，微信即可追更。"
     plugin_icon = "DramaTracker.png"
-    plugin_version = "1.2.6"
+    plugin_version = "1.2.7"
     plugin_author = "dramafan2026"
     author_url = "https://github.com/dramafan2026/MoviePilot-Plugins"
     plugin_config_prefix = "dramatracker_"
@@ -949,7 +950,7 @@ class DramaTracker(_PluginBase):
         def _f(platform: str, name: str):
             if platform == "bilibili":
                 return bilibili.search_picked(CLIENT, name)
-            return client_search_all(platform, name)
+            return client_search_one(platform, name)
         return _f
 
     def _strategy_fn(self):

@@ -61,7 +61,7 @@ class DramaTracker(_PluginBase):
     plugin_name = "追剧助手"
     plugin_desc = "五平台追剧订阅，新集/完结/断更推送，官方排播时刻与追剧日历，豆瓣新剧发现、待映倒计时，微信即可追更。"
     plugin_icon = "DramaTracker.png"
-    plugin_version = "1.2.5"
+    plugin_version = "1.2.6"
     plugin_author = "dramafan2026"
     author_url = "https://github.com/dramafan2026/MoviePilot-Plugins"
     plugin_config_prefix = "dramatracker_"
@@ -1260,12 +1260,14 @@ class DramaTracker(_PluginBase):
     # ---------- 生命周期 ----------
 
     def stop_service(self) -> None:
-        """释放后台资源：取消一次性任务线程；定时任务由宿主调度器托管。"""
+        """释放后台资源：取消一次性任务线程；定时任务由宿主调度器托管。
+
+        不改动 enabled 开关：启用状态由用户配置决定，须跨重载/重启保持。
+        """
         t = getattr(self, "_onlyonce_timer", None)
         if t:
             t.cancel()
             self._onlyonce_timer = None
-        self._config["enabled"] = False
 
 
 def today_text(now: datetime) -> str:

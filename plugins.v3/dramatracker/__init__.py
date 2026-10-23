@@ -61,7 +61,7 @@ class DramaTracker(_PluginBase):
     plugin_name = "追剧助手"
     plugin_desc = "五平台追剧订阅，新集/完结/断更推送，官方排播时刻与追剧日历，豆瓣新剧发现、待映倒计时，微信即可追更。"
     plugin_icon = "DramaTracker.png"
-    plugin_version = "1.2.4"
+    plugin_version = "1.2.5"
     plugin_author = "dramafan2026"
     author_url = "https://github.com/dramafan2026/MoviePilot-Plugins"
     plugin_config_prefix = "dramatracker_"
@@ -353,7 +353,7 @@ class DramaTracker(_PluginBase):
                     "component": "VBtn", "text": "⚡ 立即检查",
                     "props": {"color": "primary", "variant": "flat", "block": True},
                     "events": {"click": {"api": f"plugin/{PLUGIN_ID}/check",
-                                         "method": "post", "params": {}}},
+                                         "method": "get", "params": {}}},
                 }]},
             ]})
 
@@ -414,7 +414,7 @@ class DramaTracker(_PluginBase):
                                        "variant": "tonal", "block": True},
                              "events": {"click": {
                                  "api": f"plugin/{PLUGIN_ID}/autosub",
-                                 "method": "post",
+                                 "method": "get",
                                  "params": {"name": f.get("title", "")}}}},
                         ],
                     }],
@@ -542,7 +542,7 @@ class DramaTracker(_PluginBase):
                          "props": {"size": "small", "color": "primary",
                                    "variant": "flat", "block": True},
                          "events": {"click": {
-                             "api": f"plugin/{PLUGIN_ID}/subscribe", "method": "post",
+                             "api": f"plugin/{PLUGIN_ID}/subscribe", "method": "get",
                              "params": {"name": it.get("title", ""),
                                         "platform": it.get("platform", ""),
                                         "cover": it.get("cover", "")}}}},
@@ -563,7 +563,7 @@ class DramaTracker(_PluginBase):
              "auth": "bear", "summary": "订阅剧集"},
             {"path": "/quick_add", "endpoint": self.api_subscribe, "methods": ["GET"],
              "auth": "apikey", "summary": "订阅剧集（iOS 快捷指令/外部系统）"},
-            {"path": "/autosub", "endpoint": self.api_autosub, "methods": ["POST"],
+            {"path": "/autosub", "endpoint": self.api_autosub, "methods": ["GET", "POST"],
              "auth": "bear", "summary": "按剧名自动搜索并订阅最佳候选"},
             {"path": "/unsubscribe", "endpoint": self.api_unsubscribe, "methods": ["GET", "POST"],
              "auth": "bear", "summary": "取消订阅"},
@@ -577,7 +577,7 @@ class DramaTracker(_PluginBase):
              "auth": "bear", "summary": "待映倒计时"},
             {"path": "/today", "endpoint": self.api_today, "methods": ["GET"],
              "auth": "bear", "summary": "今日更新视图"},
-            {"path": "/check", "endpoint": self.api_check, "methods": ["POST"],
+            {"path": "/check", "endpoint": self.api_check, "methods": ["GET", "POST"],
              "auth": "bear", "summary": "手动触发检查"},
             {"path": "/ics", "endpoint": self.api_ics, "methods": ["GET"],
              "auth": "apikey", "summary": "追剧日历 ICS 订阅"},
@@ -588,21 +588,21 @@ class DramaTracker(_PluginBase):
     def api_search(self, name: str = "", platform: str = "") -> dict:
         """五平台聚合搜索；失败平台原因随 errors 透传。"""
         if not name.strip():
-            return {"success": False, "message": "请输入剧名"}
+            return {"success": False, "message": "请输入剧名", "data": None}
         p = core.parse_platform(platform) if platform else None
         try:
             items, errors = client_search_all(p, name.strip())
         except Exception as e:
-            return {"success": False, "message": str(e), "items": [], "errors": []}
-        return {"success": True, "items": items, "errors": errors}
+            return {"success": False, "message": str(e), "data": {"items": [], "errors": []}}
+        return {"success": True, "message": "", "data": {"items": items, "errors": errors}}
 
     def api_subscribe(self, name: str = "", platform: str = "iqiyi", cover: str = "") -> dict:
         """订阅剧集（同时供 iOS 快捷指令 quick_add 使用）。"""
         if not name.strip():
-            return {"success": False, "message": "缺少剧名"}
+            return {"success": False, "message": "缺少剧名", "data": None}
         p = core.parse_platform(platform)
         if not p:
-            return {"success": False, "message": f"不支持的平台：{platform}"}
+            return {"success": False, "message": f"不支持的平台：{platform}", "data": None}
         key = core.show_key(p, name)
         self._subscriptions[key] = {"name": name.strip(), "platform": p, "cover": cover}
         self.save_data("subscriptions", self._subscriptions)
@@ -610,7 +610,7 @@ class DramaTracker(_PluginBase):
         # 订阅本身已落库，立即返回避免前端同步请求超时（「服务器返回了无效响应」）
         import threading
         threading.Thread(target=self._check_one_now, args=(p, name.strip()), daemon=True).start()
-        return {"success": True, "message": f"已订阅《{name.strip()}》，正在获取最新集数", "key": key}
+        return {"success": True, "message": f"已订阅《{name.strip()}》，正在获取最新集数", "data": {"key": key}}
 
     def api_autosub(self, name: str = "") -> dict:
         """按剧名五平台聚合搜索并订阅最佳候选（平台自动识别）。
@@ -621,11 +621,11 @@ class DramaTracker(_PluginBase):
         """
         name = str(name or "").strip()
         if not name:
-            return {"success": False, "message": "缺少剧名"}
+            return {"success": False, "message": "缺少剧名", "data": None}
         import threading
         threading.Thread(target=self._autosub_bg, args=(name,), daemon=True).start()
         return {"success": True,
-                "message": f"正在搜索并订阅《{name}》，完成后将发送消息通知"}
+                "message": f"正在搜索并订阅《{name}》，完成后将发送消息通知", "data": None}
 
     def _autosub_bg(self, name: str) -> None:
         """后台：五平台搜索 → 订阅最佳候选 → 消息通知结果。"""
@@ -657,8 +657,8 @@ class DramaTracker(_PluginBase):
             recs = state.get("shows") or {}
             recs.pop(key, None)
             self.save_data("state", state)
-            return {"success": True, "message": "已取消订阅"}
-        return {"success": False, "message": "订阅不存在"}
+            return {"success": True, "message": "已取消订阅", "data": None}
+        return {"success": False, "message": "订阅不存在", "data": None}
 
     def api_list(self) -> dict:
         state = self.get_data("state") or {}
@@ -681,7 +681,7 @@ class DramaTracker(_PluginBase):
                 "link": rec.get("link", ""),
                 "error": rec.get("error", ""),
             })
-        return {"success": True, "items": out}
+        return {"success": True, "message": "", "data": {"items": out}}
 
     def api_calendar(self) -> dict:
         state = self.get_data("state") or {}
@@ -710,7 +710,7 @@ class DramaTracker(_PluginBase):
                 "link": rec.get("link", ""),
             })
         out.sort(key=lambda x: (x["next_days"] < 0, x["next_days"]))
-        return {"success": True, "items": out}
+        return {"success": True, "message": "", "data": {"items": out}}
 
     def api_discover(self, tag: str = "") -> dict:
         """豆瓣榜单（30 分钟缓存）；已订阅的剧带 subscribed 标记。"""
@@ -729,11 +729,11 @@ class DramaTracker(_PluginBase):
                 h["subscribed"] = bool(dt) and any((st in dt) or (dt in st) for st in wl)
                 h["cover"] = self._cover_proxy(h.get("cover", ""))
             result.append({"tag": t, "items": lst, "error": ""})
-        return {"success": True, "tags": result}
+        return {"success": True, "message": "", "data": {"tags": result}}
 
     def api_upcoming(self) -> dict:
         items = upcoming.upcoming(CLIENT, limit=12)
-        return {"success": True, "items": items}
+        return {"success": True, "message": "", "data": {"items": items}}
 
     def api_today(self) -> dict:
         """今日更新视图（含断更提示）。"""
@@ -758,7 +758,7 @@ class DramaTracker(_PluginBase):
                 "finished": rec.get("finished", False),
                 "link": rec.get("link", ""),
             })
-        return {"success": True, "items": out, "date_text": f"{date.today().month}月{date.today().day}日"}
+        return {"success": True, "message": "", "data": {"items": out, "date_text": f"{date.today().month}月{date.today().day}日"}}
 
     def api_check(self) -> dict:
         """手动触发一次检查（走静默暂存逻辑）。
@@ -769,7 +769,7 @@ class DramaTracker(_PluginBase):
         """
         import threading
         threading.Thread(target=self._check_bg, daemon=True).start()
-        return {"success": True, "message": "检查已启动，完成后将发送消息通知"}
+        return {"success": True, "message": "检查已启动，完成后将发送消息通知", "data": None}
 
     def _check_bg(self) -> None:
         try:

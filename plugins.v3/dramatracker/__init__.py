@@ -360,7 +360,7 @@ class DramaTracker(_PluginBase):
         # 搜索订阅卡：候选由配置页「搜索剧名」检索后缓存（详情页输入框无法回传后端）
         elements.append(self._search_card())
 
-        # ---- 五标签页（VTabs 与 VWindow 共享 model 名实现联动）----
+        # ---- 五个板块的内容构造 ----
         week_rows = []
         for label, names in ([("每日档", daily_names)]
                              + [(day_names[i], buckets[i]) for i in range(1, 8)]

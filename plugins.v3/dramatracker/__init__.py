@@ -61,7 +61,7 @@ class DramaTracker(_PluginBase):
     plugin_name = "追剧助手"
     plugin_desc = "五平台追剧订阅，新集/完结/断更推送，官方排播时刻与追剧日历，豆瓣新剧发现、待映倒计时，微信即可追更。"
     plugin_icon = "DramaTracker.png"
-    plugin_version = "1.2.3"
+    plugin_version = "1.2.4"
     plugin_author = "dramafan2026"
     author_url = "https://github.com/dramafan2026/MoviePilot-Plugins"
     plugin_config_prefix = "dramatracker_"
@@ -606,9 +606,11 @@ class DramaTracker(_PluginBase):
         key = core.show_key(p, name)
         self._subscriptions[key] = {"name": name.strip(), "platform": p, "cover": cover}
         self.save_data("subscriptions", self._subscriptions)
-        # 立即拉一次建立基线
-        self._check_one_now(p, name.strip())
-        return {"success": True, "message": f"已订阅《{name.strip()}》", "key": key}
+        # 建立基线需网络拉详情（数秒到数十秒），移到后台线程执行，
+        # 订阅本身已落库，立即返回避免前端同步请求超时（「服务器返回了无效响应」）
+        import threading
+        threading.Thread(target=self._check_one_now, args=(p, name.strip()), daemon=True).start()
+        return {"success": True, "message": f"已订阅《{name.strip()}》，正在获取最新集数", "key": key}
 
     def api_autosub(self, name: str = "") -> dict:
         """按剧名五平台聚合搜索并订阅最佳候选（平台自动识别）。

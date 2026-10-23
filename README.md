@@ -2,7 +2,7 @@
 
 > MoviePilot V3 追剧插件 —— 五平台追剧订阅、更新推送、排播日历、豆瓣新剧发现，微信里即可追更。
 
-![MoviePilot V3](https://img.shields.io/badge/MoviePilot-V3-3ddc97) ![Version](https://img.shields.io/badge/version-1.2.8-22d3ee) ![Platform](https://img.shields.io/badge/平台-爱奇艺%20·%20腾讯%20·%20优酷%20·%20B站%20·%20芒果-ff9f43) ![License](https://img.shields.io/badge/license-MIT-8b91a5)
+![MoviePilot V3](https://img.shields.io/badge/MoviePilot-V3-3ddc97) ![Version](https://img.shields.io/badge/version-1.2.9-22d3ee) ![Platform](https://img.shields.io/badge/平台-爱奇艺%20·%20腾讯%20·%20优酷%20·%20B站%20·%20芒果-ff9f43) ![License](https://img.shields.io/badge/license-MIT-8b91a5)
 
 ## 界面预览
 
@@ -56,7 +56,7 @@ https://github.com/dramafan2026/MoviePilot-Plugins
 
 | 插件 | 版本 | 说明 |
 |---|---|---|
-| DramaTracker | v1.2.8 | 修复全部插件接口 404 的致命问题（V3 宿主插件路由不含插件 ID 段，路径需自带 ID，此前按钮/封面/ICS 全部打到不存在路径）；封面代理改为匿名可访问 |
+| DramaTracker | v1.2.9 | 回滚 v1.2.8 的接口路径修改：正式版 MP V3 会自动补插件 ID 前缀，路径无需自带 ID，v1.2.8 反而造成双重前缀 404；保留封面代理匿名访问 |
 
 
 版本历史见 [package.v3.json](package.v3.json)。
